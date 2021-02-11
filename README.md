@@ -1,4 +1,4 @@
-# Welcome to ![alt text](https://github.com/jutzca/Neurosurveillance/tree/main/figures/neurosurveillance_logo.png)
+# Welcome to ![alt text](https://github.com/jutzca/Neurosurveillance/tree/main/figures/neurosurveillance_logo.png?raw=true)
 
 This repository contains code for the interactive [Neurosurveillance Shiny Web App](https://jutzelec.shinyapps.io/neurosurveillance/)
 
