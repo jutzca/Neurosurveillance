@@ -18,12 +18,13 @@ plot_base_emsci <- function(data_emsci, score, time){
     geom_boxplot(outlier.shape = NA) +  # remove NAs, and set the whisker length to all included points
     geom_jitter(shape=21, colour="grey20", width = 0.3, alpha = 0.3) +
     #theme_economist(horizontal = FALSE) +
-    theme(axis.text.x = element_text(size=16, angle = 90, vjust = 0.5, hjust=1),
+    theme(axis.text.x = element_text(size=16, angle = 30, vjust = 0.5, hjust=1),
           axis.text.y = element_text(size=16),
-          axis.title.x = element_text(size=18, face="bold"),
+          axis.title.x = element_text(size=18, face="bold", vjust=-0.5),
           axis.title.y = element_text(size=18, face="bold"),
-          plot.background = element_rect(fill = "#EFF2F4")) +
-    ylab(score)
+          plot.background = element_rect(fill = "#FFFFFF")) +
+    ylab(score) +
+    xlab('Exam Stage')
   
   if(is.element(score, c('UEMS', 'LEMS', 'RMS', 'LMS'))){
     p1 <- p1 + ylim(0, 50)
@@ -47,12 +48,13 @@ plot_base_Sygen <- function(data_sygen, score, time){
     geom_boxplot(outlier.shape = NA) +  # remove NAs, and set the whisker length to all included points
     geom_jitter(shape=21, colour="grey20", width = 0.3, alpha = 0.3) +
     theme_economist(horizontal = FALSE) +
-    theme(axis.text.x = element_text(size=16, angle = 90, vjust = 0.5, hjust=1),
+    theme(axis.text.x = element_text(size=16, angle = 30, vjust = 0.5, hjust=1),
           axis.text.y = element_text(size=16),
-          axis.title.x = element_text(size=18, face="bold"),
+          axis.title.x = element_text(size=18, face="bold", vjust=-0.5),
           axis.title.y = element_text(size=18, face="bold"),
-          plot.background = element_rect(fill = "#EFF2F4")) +
-    ylab(score)
+          plot.background = element_rect(fill = "#FFFFFF")) +
+    ylab(score) +
+    xlab('Exam Stage')
   
     if(is.element(score, c('UEMS', 'LEMS', 'RMS', 'LMS'))){
       p1 <- p1 + ylim(0, 50)
@@ -75,12 +77,13 @@ plot_base_All <- function(data_All, score){
     geom_boxplot(outlier.shape = NA) +  # remove NAs, and set the whisker length to all included points
     geom_jitter(shape=21, colour="grey20", width = 0.3, alpha = 0.3) +
     theme_economist(horizontal = FALSE) +
-    theme(axis.text.x = element_text(size=16, angle = 90, vjust = 0.5, hjust=1),
+    theme(axis.text.x = element_text(size=16, angle = 30, vjust = 0.5, hjust=1),
           axis.text.y = element_text(size=16),
-          axis.title.x = element_text(size=18, face="bold"),
+          axis.title.x = element_text(size=18, face="bold", vjust=-0.5),
           axis.title.y = element_text(size=18, face="bold"),
-          plot.background = element_rect(fill = "#EFF2F4")) +
-    ylab(score)
+          plot.background = element_rect(fill = "#FFFFFF")) +
+    ylab(score) +
+    xlab('Exam Stage')
   
   if(is.element(score, c('UEMS', 'LEMS', 'RMS', 'LMS'))){
     p1 <- p1 + ylim(0, 50)
@@ -126,12 +129,15 @@ plot_filters_emsci <- function(data_emsci, score, time, filter1, filter2, cat1, 
     geom_jitter(shape=21, colour="grey20", width = 0.3, alpha = 0.3) +
     facet_grid(reformulate(filter2,filter1), scales="free") + 
     #theme_economist(horizontal = FALSE) +
-    theme(axis.text.x = element_text(size=16, angle = 90, vjust = 0.5, hjust=1),
+    theme(axis.text.x = element_text(size=16, angle = 30, vjust = 0.5, hjust=1),
           axis.text.y = element_text(size=16),
-          axis.title.x = element_text(size=18, face="bold"),
+          axis.title.x = element_text(size=18, face="bold", vjust=-0.5),
           axis.title.y = element_text(size=18, face="bold"),
-          plot.background = element_rect(fill = "#EFF2F4")) +
-    ylab(score)
+          plot.background = element_rect(fill = "#FFFFFF"),
+          strip.text.x = element_text(size = 14),
+          strip.text.y = element_text(size = 14)) +
+    ylab(score) +
+    xlab('Exam Stage')
   
   if(is.element(score, c('UEMS', 'LEMS', 'RMS', 'LMS'))){
     p1 <- p1 + ylim(0, 50)
@@ -165,12 +171,15 @@ plot_filters_emsci_2 <- function(data_emsci, score, time, filter1, filter2, cat1
     geom_jitter(shape=21, colour="grey20", width = 0.3, alpha = 0.3) +
     facet_grid(reformulate(cat1,cat2), scales="free") + 
     #theme_economist(horizontal = FALSE) +
-    theme(axis.text.x = element_text(size=16, angle = 90, vjust = 0.5, hjust=1),
+    theme(axis.text.x = element_text(size=16, angle = 30, vjust = 0.5, hjust=1),
           axis.text.y = element_text(size=16),
-          axis.title.x = element_text(size=18, face="bold"),
+          axis.title.x = element_text(size=18, face="bold", vjust=-0.5),
           axis.title.y = element_text(size=18, face="bold"),
-          plot.background = element_rect(fill = "#EFF2F4")) +
-    ylab(score)
+          plot.background = element_rect(fill = "#FFFFFF"),
+          strip.text.x = element_text(size = 14),
+          strip.text.y = element_text(size = 14)) +
+    ylab(score) +
+    xlab('Exam Stage')
   
   if(is.element(score, c('UEMS', 'LEMS', 'RMS', 'LMS'))){
     p1 <- p1 + ylim(0, 50)
@@ -211,13 +220,16 @@ plot_filters_Sygen <- function(data_sygen, score, time, filter1, filter2, cat1, 
     geom_boxplot(outlier.shape = NA) +  # remove NAs, and set the whisker length to all included points
     geom_jitter(shape=21, colour="grey20", width = 0.3, alpha = 0.3) +
     facet_grid(reformulate(filter2,filter1), scales="free") + 
-    theme_economist(horizontal = FALSE) +
-    theme(axis.text.x = element_text(size=16, angle = 90, vjust = 0.5, hjust=1),
+    #theme_economist(horizontal = FALSE) +
+    theme(axis.text.x = element_text(size=16, angle = 30, vjust = 0.5, hjust=1),
           axis.text.y = element_text(size=16),
-          axis.title.x = element_text(size=18, face="bold"),
+          axis.title.x = element_text(size=18, face="bold", vjust=-0.5),
           axis.title.y = element_text(size=18, face="bold"),
-          plot.background = element_rect(fill = "#EFF2F4")) +
-    ylab(score)
+          plot.background = element_rect(fill = "#FFFFFF"),
+          strip.text.x = element_text(size = 14),
+          strip.text.y = element_text(size = 14)) +
+    ylab(score) +
+    xlab('Exam Stage')
   
   if(is.element(score, c('UEMS', 'LEMS', 'RMS', 'LMS'))){
     p1 <- p1 + ylim(0, 50)
@@ -253,13 +265,16 @@ plot_filters_All <- function(data_all, score, filter1, filter2, cat1, cat2){
     geom_boxplot(outlier.shape = NA) +  # remove NAs, and set the whisker length to all included points
     geom_jitter(shape=21, colour="grey20", width = 0.3, alpha = 0.3) +
     facet_grid(reformulate(filter2,filter1), scales="free") + 
-    theme_economist(horizontal = FALSE) +
-    theme(axis.text.x = element_text(size=16, angle = 90, vjust = 0.5, hjust=1),
+    #theme_economist(horizontal = FALSE) +
+    theme(axis.text.x = element_text(size=16, angle = 30, vjust = 0.5, hjust=1),
           axis.text.y = element_text(size=16),
-          axis.title.x = element_text(size=18, face="bold"),
+          axis.title.x = element_text(size=18, face="bold", vjust=-0.6),
           axis.title.y = element_text(size=18, face="bold"),
-          plot.background = element_rect(fill = "#EFF2F4")) +
-    ylab(score) 
+          plot.background = element_rect(fill = "#FFFFFF"),
+          strip.text.x = element_text(size = 14),
+          strip.text.y = element_text(size = 14)) +
+    ylab(score) +
+    xlab('Exam Stage')
   
   if(is.element(score, c('UEMS', 'LEMS', 'RMS', 'LMS'))){
     p1 <- p1 + ylim(0, 50)
@@ -294,11 +309,13 @@ plot_base_Age_EMSCI <- function(data,title){
           plot.caption = element_text(size = 10, margin = margin(b = 10, t = 50), color = "#5D646F"),
           axis.text.y = element_text(size = 10, color = "#5D646F"),
           strip.text = element_text(color = "#5D646F", size = 14, face = "bold", hjust = 0.030),
-          plot.background = element_rect(fill = "#EFF2F4"),
+          plot.background = element_rect(fill = "#FFFFFF"),
           legend.spacing  = unit(0.1, "lines"),
           legend.text  = element_text(size = 10),
           legend.title = element_text(size = 10),
-          legend.text.align = 0)
+          legend.text.align = 0,
+          strip.text.x = element_text(size = 14),
+          strip.text.y = element_text(size = 14))
 
   return(age_overall)
 }
@@ -328,11 +345,13 @@ plot_base_Age_Sygen <- function(data,title){
           plot.caption = element_text(size = 10, margin = margin(b = 10, t = 50), color = "#5D646F"),
           axis.text.y = element_text(size = 10, color = "#5D646F"),
           strip.text = element_text(color = "#5D646F", size = 10, face = "bold", hjust = 0.030),
-          plot.background = element_rect(fill = "#EFF2F4"),
+          plot.background = element_rect(fill = "#FFFFFF"),
           legend.spacing  = unit(0.1, "lines"),
           legend.text  = element_text(size = 10),
           legend.title = element_text(size = 10),
-          legend.text.align = 0)
+          legend.text.align = 0,
+          strip.text.x = element_text(size = 14),
+          strip.text.y = element_text(size = 14))
   
   return(age_overall.sygen)
 }
@@ -349,8 +368,10 @@ plot_base_Age_SCI_rehab <- function(data,title){
     theme_economist(horizontal = FALSE) +
     theme(panel.grid.major.x = element_line(linetype = "dotted", size = 0.3, color = "#3A3F4A"),
           strip.text = element_text(color = "#5D646F", size = 10, face = "bold", hjust = 0.50),
-          plot.background = element_rect(fill = "#EFF2F4"),
-          axis.text.x = element_text(angle = 45))
+          plot.background = element_rect(fill = "#FFFFFF"),
+          axis.text.x = element_text(angle = 45),
+          strip.text.x = element_text(size = 14),
+          strip.text.y = element_text(size = 14))
   
   return(age_overall.SCI_rehab)
 }
@@ -384,7 +405,7 @@ plot_base_Sex_EMSCI <- function(data, title){
           axis.text.y = element_text(size = 10, color = "#5D646F"),
           axis.text.x = element_text(size = 10, color = "#5D646F"),
           strip.text = element_text(color = "#5D646F", size = 10, face = "bold", hjust = 0.5),
-          plot.background = element_rect(fill = "#EFF2F4"),
+          plot.background = element_rect(fill = "#FFFFFF"),
           plot.margin=unit(c(0.1,0.1,0.1,0.05),"cm"),
           legend.position = "none",
           legend.spacing  = unit(0.1, "lines"),
@@ -416,7 +437,7 @@ plot_base_Sex_EMSCI <- function(data, title){
           axis.text.y = element_blank(),
           axis.text.x = element_text(size = 10, color = "#5D646F"),
           strip.text = element_text(color = "#5D646F", size = 10, face = "bold", hjust = 0.5),
-          plot.background = element_rect(fill = "#EFF2F4"),
+          plot.background = element_rect(fill = "#FFFFFF"),
           plot.margin=unit(c(0.1,0.1,0.1,0.05),"cm"),
           legend.position = "none",
           legend.spacing  = unit(0.1, "lines"),
@@ -470,7 +491,7 @@ plot_base_Sex_Sygen <- function(data, title){
           axis.text.y = element_text(size = 10, color = "#5D646F"),
           axis.text.x = element_text(size = 10, color = "#5D646F"),
           strip.text = element_text(color = "#5D646F", size = 10, face = "bold", hjust = 0.5),
-          plot.background = element_rect(fill = "#EFF2F4"),
+          plot.background = element_rect(fill = "#FFFFFF"),
           plot.margin=unit(c(0.1,0.1,0.1,0.05),"cm"),
           legend.position = "none",
           legend.spacing  = unit(0.1, "lines"),
@@ -504,7 +525,7 @@ plot_base_Sex_Sygen <- function(data, title){
           axis.text.y = element_blank(),
           axis.text.x = element_text(size = 10, color = "#5D646F"),
           strip.text = element_text(color = "#5D646F", size = 10, face = "bold", hjust = 0.5),
-          plot.background = element_rect(fill = "#EFF2F4"),
+          plot.background = element_rect(fill = "#FFFFFF"),
           plot.margin=unit(c(0.1,0.1,0.1,0.05),"cm"),
           legend.position = "none",
           legend.spacing  = unit(0.1, "lines"),
@@ -556,7 +577,7 @@ plot_base_Sex_SCI_rehab <- function(data, title){
           axis.text.y = element_text(size = 10, color = "#5D646F"),
           axis.text.x = element_text(size = 10, color = "#5D646F"),
           strip.text = element_text(color = "#5D646F", size = 10, face = "bold", hjust = 0.5),
-          plot.background = element_rect(fill = "#EFF2F4"),
+          plot.background = element_rect(fill = "#FFFFFF"),
           plot.margin=unit(c(0.1,0.1,0.1,0.05),"cm"),
           legend.position = "none",
           legend.spacing  = unit(0.1, "lines"),
@@ -590,7 +611,7 @@ plot_base_Sex_SCI_rehab <- function(data, title){
           axis.text.y = element_blank(),
           axis.text.x = element_text(size = 10, color = "#5D646F"),
           strip.text = element_text(color = "#5D646F", size = 10, face = "bold", hjust = 0.5),
-          plot.background = element_rect(fill = "#EFF2F4"),
+          plot.background = element_rect(fill = "#FFFFFF"),
           plot.margin=unit(c(0.1,0.1,0.1,0.05),"cm"),
           legend.position = "none",
           legend.spacing  = unit(0.1, "lines"),
@@ -643,7 +664,7 @@ plot_base_Sex_EMSCI_paralysis <- function(data, title){
           axis.text.y = element_text(size = 10, color = "#5D646F"),
           axis.text.x = element_text(size = 10, color = "#5D646F"),
           strip.text = element_text(color = "#5D646F", size = 10, face = "bold", hjust = 0.5),
-          plot.background = element_rect(fill = "#EFF2F4"),
+          plot.background = element_rect(fill = "#FFFFFF"),
           plot.margin=unit(c(0.1,0.2,0.1,-.1),"cm"),
           legend.position = "none",
           legend.spacing  = unit(0.1, "lines"),
@@ -677,7 +698,7 @@ plot_base_Sex_EMSCI_paralysis <- function(data, title){
           axis.text.y = element_blank(),
           axis.text.x = element_text(size = 10, color = "#5D646F"),
           strip.text = element_text(color = "#5D646F", size = 10, face = "bold", hjust = 0.5),
-          plot.background = element_rect(fill = "#EFF2F4"),
+          plot.background = element_rect(fill = "#FFFFFF"),
           plot.margin=unit(c(0.1,0.1,0.1,0.05),"cm"),
           legend.position = "none",
           legend.spacing  = unit(0.1, "lines"),
@@ -722,7 +743,7 @@ plot_base_AIS_EMSCI <- function(data, title){
           plot.title = element_text(hjust = 0.5, size = 12),
           axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
           axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0)),
-          plot.background = element_rect(fill = "#EFF2F4"))+
+          plot.background = element_rect(fill = "#FFFFFF"))+
     annotation_custom(grob = textGrob(label = 'Female', gp=gpar(fontsize=10, fontface="bold")), xmin=length(levels(emsci.ais.proportions$YEARDOI_cat)), xmax=length(levels(emsci.ais.proportions$YEARDOI_cat)), ymin=-85, ymax=-85) + 
     annotation_custom(grob = textGrob(label = 'Male', gp=gpar(fontsize=10, fontface="bold")), xmin=length(levels(emsci.ais.proportions$YEARDOI_cat)), xmax=length(levels(emsci.ais.proportions$YEARDOI_cat)), ymin=90, ymax=90)
   return(emsci.ais.plot)
@@ -754,7 +775,7 @@ plot_base_AIS_Sygen <- function(data, title){
           plot.title = element_text(hjust = 0.5, size = 12),
           axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
           axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0)),
-          plot.background = element_rect(fill = "#EFF2F4"))+
+          plot.background = element_rect(fill = "#FFFFFF"))+
     annotation_custom(grob = textGrob(label = 'Female', gp=gpar(fontsize=10, fontface="bold")), xmin=length(levels(Sygen.ais.proportions$YEARDOI_cat)), xmax=length(levels(Sygen.ais.proportions$YEARDOI_cat)), ymin=-85, ymax=-85) + 
     annotation_custom(grob = textGrob(label = 'Male', gp=gpar(fontsize=10, fontface="bold")), xmin=length(levels(Sygen.ais.proportions$YEARDOI_cat)), xmax=length(levels(Sygen.ais.proportions$YEARDOI_cat)), ymin=90, ymax=90)
   return(Sygen.ais.plot)
@@ -787,7 +808,7 @@ plot_base_AIS_SCI_rehab <- function(data, title){
           plot.title = element_text(hjust = 0.5, size = 12),
           axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
           axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0)),
-          plot.background = element_rect(fill = "#EFF2F4"))+
+          plot.background = element_rect(fill = "#FFFFFF"))+
     annotation_custom(grob = textGrob(label = 'Female', gp=gpar(fontsize=10, fontface="bold")), xmin=length(levels(SCI_rehab.ais.proportions$YEARDOI)), xmax=length(levels(SCI_rehab.ais.proportions$YEARDOI)), ymin=-85, ymax=-85) + 
     annotation_custom(grob = textGrob(label = 'Male', gp=gpar(fontsize=10, fontface="bold")), xmin=length(levels(SCI_rehab.ais.proportions$YEARDOI)), xmax=length(levels(SCI_rehab.ais.proportions$YEARDOI)), ymin=90, ymax=90)
   return(SCI_rehab.ais.plot)
@@ -831,7 +852,10 @@ plot_base_NLI_EMSCI <- function(data, title){
           plot.title = element_text(hjust = 0.5, size = 12),
           axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
           axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0)),
-          plot.background = element_rect(fill = "#EFF2F4"))+
+          plot.background = element_rect(fill = "#FFFFFF"))+
+    #guides(colour=guide_legend(nrow=3, ncol=length(levels(emsci.nli.proportions$NLI))%%3, byrow=TRUE)) +
+    guides(fill = guide_legend(nrow=3)) +
+    #scale_shape_manual(guide = guide_legend(nrow=3)) + 
     annotation_custom(grob = textGrob(label = 'Female', gp=gpar(fontsize=10, fontface="bold")), xmin=length(levels(emsci.nli.proportions$YEARDOI_cat)), xmax=length(levels(emsci.nli.proportions$YEARDOI_cat)), ymin=-85, ymax=-85) + 
     annotation_custom(grob = textGrob(label = 'Male', gp=gpar(fontsize=10, fontface="bold")), xmin=length(levels(emsci.nli.proportions$YEARDOI_cat)), xmax=length(levels(emsci.nli.proportions$YEARDOI_cat)), ymin=90, ymax=90)
   return(emsci.nli.plot)
@@ -874,7 +898,7 @@ plot_base_NLI_Sygen <- function(data, title){
           plot.title = element_text(hjust = 0.5, size = 12),
           axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
           axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0)),
-          plot.background = element_rect(fill = "#EFF2F4")) +
+          plot.background = element_rect(fill = "#FFFFFF")) +
     annotation_custom(grob = textGrob(label = 'Female', gp=gpar(fontsize=10, fontface="bold")), xmin=length(levels(Sygen.nli.proportions$YEARDOI_cat)), xmax=length(levels(Sygen.nli.proportions$YEARDOI_cat)), ymin=-85, ymax=-85) + 
     annotation_custom(grob = textGrob(label = 'Male', gp=gpar(fontsize=10, fontface="bold")), xmin=length(levels(Sygen.nli.proportions$YEARDOI_cat)), xmax=length(levels(Sygen.nli.proportions$YEARDOI_cat)), ymin=90, ymax=90)
   return(Sygen.nli.plot)
@@ -918,7 +942,7 @@ plot_base_NLI_SCI_rehab <- function(data, title){
           plot.title = element_text(hjust = 0.5, size = 12),
           axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
           axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0)),
-          plot.background = element_rect(fill = "#EFF2F4")) +
+          plot.background = element_rect(fill = "#FFFFFF")) +
     annotation_custom(grob = textGrob(label = 'Female', gp=gpar(fontsize=10, fontface="bold")), xmin=length(levels(SCI_rehab.nli.proportions$YEARDOI)), xmax=length(levels(SCI_rehab.nli.proportions$YEARDOI)), ymin=-85, ymax=-85) + 
     annotation_custom(grob = textGrob(label = 'Male', gp=gpar(fontsize=10, fontface="bold")), xmin=length(levels(SCI_rehab.nli.proportions$YEARDOI)), xmax=length(levels(SCI_rehab.nli.proportions$YEARDOI)), ymin=90, ymax=90)
   
@@ -945,7 +969,8 @@ plot_predict_emsci <- function(data, score){
           axis.text.y = element_text(size=16),
           axis.title.x = element_text(size=18, face="bold"),
           axis.title.y = element_text(size=18, face="bold"),
-          plot.background = element_rect(fill = "#EFF2F4"))
+          plot.background = element_rect(fill = "#FFFFFF")) +
+    xlab('Exam Stage')
   
   return(plot)
 }
@@ -976,27 +1001,24 @@ plot_predict_emsci_NN <- function(data, score, value){
     dplyr::mutate(label = paste0("n = ", n))
   
   plot <- ggplot(data, aes_string(x="ExamStage", y=score)) + 
-    geom_text(data = class, aes(y = 53, label = label, colour = 'blue')) + 
+    geom_text(data = class, aes(y = 53, label = label), colour = 'blue') + 
     ylim(0, 55) +
     theme_economist() +
     theme(axis.text.x = element_text(size=16),
           axis.text.y = element_text(size=16),
-          axis.title.x = element_text(size=18, face="bold"),
+          axis.title.x = element_text(size=18, face="bold", vjust=-0.5),
           axis.title.y = element_text(size=18, face="bold"),
-          plot.background = element_rect(fill = "#EFF2F4"))
+          plot.background = element_rect(fill = "#FFFFFF"),
+          legend.position = "none") +
+    xlab('Exam Stage')
   
   plot_final <- add_line_points(plot, score, df)
-  plot_final2 <- plot_final + 
-                 scale_color_identity(#"Line.Color",
-                                      labels=c('mean', 'individual trajectories'), 
-                                      guide="legend") + 
-                 theme(legend.position = c(0.95, 0.05),
-                       legend.justification = c("right", "top"),
-                       plot.background = element_rect(fill = "#EFF2F4"))
+  #plot_final2 <- plot_final + 
+                 #theme(plot.background = element_rect(fill = "#FFFFFF"))
   if (dim(df)[1] == 0){
-    plot_final2 <- plot_error_line()
+    plot_final <- plot_error_line()
   }
-  return(plot_final2)
+  return(plot_final)
 }
 
 add_line_points <- function(plot, score, df) {

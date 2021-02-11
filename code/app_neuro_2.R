@@ -9,6 +9,7 @@
 #setwd('/Volumes/borgwardt/Projects/SCI_Neurological_Outcome/App/')
 
 # Load packages ----
+library(rsconnect)
 library(shiny)
 library(shinyWidgets)
 library(shinydashboard)
@@ -60,6 +61,7 @@ data_emsci$ExamStage <- relevel(data_emsci$ExamStage, ref = "very acute")
 data_sygen <- read.csv('data/df_sygen_formatted_2.csv')
 data_SCI_rehab <- read.csv('data/df_rehab_formatted.csv')
 data_All <- read.csv('data/df_all_formatted.csv')
+data_emsci_sygen <- read.csv('data/df_emsci_sygen_formatted.csv')
 data_age_emsci <- read.csv('data/emsci_age.csv')
 data_emsci_epi <- read.csv('data/emsci.csv')
 data_emsci_epi$ExamStage <- as.factor(data_emsci_epi$ExamStage)
@@ -67,7 +69,6 @@ data_emsci_epi$ExamStage <- relevel(data_emsci_epi$ExamStage, ref = "very acute"
 data_sygen_epi <- read.csv('data/sygen_epi.csv')
 data_SCI_rehab_epi <- read.csv('data/df_rehab_epi.csv')
 
-#data_sygen_epi_save = data_sygen_epi
 # Functions ----
 
 convertMenuItem <- function(mi,tabName) {
@@ -79,30 +80,28 @@ convertMenuItem <- function(mi,tabName) {
   mi
 }
 
+# Add authentication to access the app
+# ref for authentication step : https://datastorm-open.github.io/shinymanager/
 
 
 latest.DateTime <- file.info("app_neuro_2.R")$mtime
 
 # User interface ----
 ui <- dashboardPage(skin = "blue", # make the frame blue
-      dashboardHeader(title = 'Menu'), # rename the left column 'Menu'
+      dashboardHeader(title = img(src="neurosurveillance_logo.png", height="80%", width="80%")), # rename the left column 'Menu'
       
-      #fluidPage(actionButton("show", "Show")),
-
       ## Sidebar content
       dashboardSidebar(
-        # -- Add Tracking JS File 
-        tags$head(includeScript("google-analytics.js")),
         sidebarMenu(id = "sidebarmenu", # create the main and sub parts within the sidebar menu
-                    convertMenuItem(menuItem("Overview", tabName = "dashboard",icon = icon("object-group"), selected = T, startExpanded = TRUE,
+                    convertMenuItem(menuItem("About", tabName = "AboutTab", icon = icon("info-circle")), tabName = "aboutG"),
+                    convertMenuItem(menuItem("Data Sources", tabName = "dashboard",icon = icon("object-group"), selected = T, startExpanded = TRUE,
                                    menuSubItem("EMSCI", tabName = "tabEMSCI", icon = icon('hubspot')),
-                                   menuSubItem("Sygen", tabName = "tabSygen", icon = icon('database')),
-                                   #menuSubItem("SCIRehab", tabName = "tabSCIrehab", icon = icon('accessible-icon')),
-                                   menuSubItem("Abbreviations", tabName = "Abbreviations", icon = icon('language'))), tabName = "dashboardG"),
+                                   menuSubItem("Sygen", tabName = "tabSygen", icon = icon('database'))), tabName = "dashboardG"),
           
                     convertMenuItem(menuItem("Visualize data", tabName = "PlotsTab", icon = icon("chart-bar")), tabName = "plotsG"),
                     convertMenuItem(menuItem("Monitoring", tabName = "PredictTab", icon = icon("clipboard-list")), tabName = "predictG"),
-                    convertMenuItem(menuItem("About", tabName = "AboutTab", icon = icon("info-circle")), tabName = "aboutG"),
+                    convertMenuItem(menuItem("Abbreviations", tabName = "Abbreviations", icon = icon("language")), tabName = "AbbreviationsG"),
+                    
           
           # make additional choices appear in the sidebar depending on the part chosen
           conditionalPanel("input.sidebarmenu == 'plotsG'",
@@ -112,7 +111,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                         choices = c("EMSCI" = "EMSCI",
                                                     "Sygen" = "Sygen",
                                                     #"SCI Rehab" = "SCI rehab",
-                                                    "All" = "All"),
+                                                    "Both data sources" = "All"),
                                         selected = character(0)),
                            
                            # choose the outcomes/features of interest
@@ -180,7 +179,10 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                            conditionalPanel(condition = "input.choose_data == 'All' && input.choose_cat_scores == 'neuro'",
                                             radioButtons("All_neuro",
                                                          label = "Outcomes available",
-                                                         choices = c("RMS", "LMS", "TMS"),
+                                                         choices = c("UEMS", "LEMS",
+                                                                     "RMS", "LMS", "TMS",
+                                                                     "RPP","LPP","TPP",
+                                                                     "RLT","LLT","TLT"),
                                                          selected = character(0)
                                             ) # end radioButtons
                            ), # end conditionalPanel
@@ -189,7 +191,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                            conditionalPanel(condition = "input.choose_data == 'EMSCI' && input.choose_cat_scores == 'epi'",
                                             radioButtons("EMSCI_epi",
                                                          label = "Features available",
-                                                         choices = c("Sex", "Age", "AIS grade", "NLI"),
+                                                         choices = c("Sex", "Age", "AIS grade", "Level of injury"),
                                                          selected = character(0)
                                             ) # end radioButtons
                            ), # end conditionalPanel
@@ -198,7 +200,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                            conditionalPanel(condition = "input.choose_data == 'Sygen' && input.choose_cat_scores == 'epi'",
                                             radioButtons("Sygen_epi",
                                                          label = "Features available",
-                                                         choices = c("Sex", "Age", "AIS grade", "NLI"),
+                                                         choices = c("Sex", "Age", "AIS grade", "Level of injury"),
                                                          selected = character(0)
                                             ) # end radioButtons
                            ), # end conditionalPanel
@@ -207,7 +209,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                            # conditionalPanel(condition = "input.choose_data == 'SCI rehab' && input.choose_cat_scores == 'epi'",
                            #                  radioButtons("SCI_rehab_epi",
                            #                               label = "Features available",
-                           #                               choices = c("Sex", "Age", "AIS grade", "NLI"),
+                           #                               choices = c("Sex", "Age", "AIS grade", "Level of injury"),
                            #                               selected = character(0)
                            #                  ) # end radioButtons
                            # ), # end conditionalPanel
@@ -223,31 +225,39 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                            ) # end conditionalPanel
                            
                            ) # end conditionalPanel 1
-          ), # end sidebarMenu
-        shinyjs::useShinyjs(),
-        tags$footer(HTML("<strong>Copyright &copy; 2020 <a href=\"https://www.google.com/\" target=\"_blank\">Neurosurveillance</a>.</strong> 
-                   <br>This work is licensed under a <a rel=\"license\" href=\"http://creativecommons.org/licenses/by-nc-nd/4.0/\" target=\"_blank\">Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License</a>.
-                   <br><a rel=\"license\" href=\"http://creativecommons.org/licenses/by-nc-nd/4.0/\" target=\"_blank\"><img alt=\"Creative Commons License\" style=\"border-width:0\" src=\"https://i.creativecommons.org/l/by-nc-nd/4.0/88x31.png\" /></a>
-                   <br>Last updated:<br>"), 
-                    latest.DateTime,
-                    id = "sideFooter",
-                    align = "left",
-                    style = "
-                  position:absolute;
-                  bottom:0;
-                  width:100%;
-                  padding: 10px;
-                  "
-        )
+          )#, # end sidebarMenu
         ), # end dashboardSidebar
 
       dashboardBody(
+        tags$script(HTML("
+                            var openTab = function(tabName){
+                              $('a', $('.sidebar')).each(function() {
+                                if(this.getAttribute('data-value') == tabName) {
+                                  this.click()
+                                };
+                              });
+                            };
+                            $('.sidebar-toggle').attr('id','menu');
+                            var dimension = [0, 0];
+                                $(document).on('shiny:connected', function(e) {
+                                    dimension[0] = window.innerWidth;
+                                    dimension[1] = window.innerHeight;
+                                    Shiny.onInputChange('dimension', dimension);
+                                });
+                                $(window).resize(function(e) {
+                                    dimension[0] = window.innerWidth;
+                                    dimension[1] = window.innerHeight;
+                                    Shiny.onInputChange('dimension', dimension);
+                                });
+                          ")),
         tabItems(
 
           # Dashboard page (dashboard)
-          tabItem(tabName = "dashboard",
+          #tabItem(tabName = "dashboard",
                   #p('This interface is meant to help visualising findings reported in :'),
-                  titlePanel(strong("Neurosurveillance after a spinal cord injury")),
+                  #titlePanel(strong("Neurosurveillance after a spinal cord injury")),
+                  #titlePanel(img(src="neurosurveillance_logo.png", height="25%", width="25%")),
+                  #fluidPage(column(10, offset = 4, titlePanel(img(src="neurosurveillance_logo.png", height="40%", width="40%")))),
                   #p(em('In preparation')),
                   #p('Lucie Bourguignon, Anh Khoa Vo, Bobo Tong, Fred Geisler, Orpheus Mach, Karsten Borgwardt, John L.K. Kramer, Lukas Grassner, Catherine R. Jutzeler'),
                   # h3('Abstract'),
@@ -257,35 +267,191 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                   # p(em('Conclusions and Relevance.')),
                   # br(),
                   
-                  box(width = 12, status = "primary", align = "center",
-                      uiOutput("video")),
+                  #box(width = 12, status = "primary", align = "center",
+                  #    uiOutput("video")),
                   
-                  p(icon('scroll'), a('Full text', href ="https://www.google.com/", target="_blank")),
-                  p(icon('quote-right'), a('Citation', href ="https://www.google.com/", target="_blank")),
-                  p(icon('github'), a('GitHub repository', href ="https://www.google.com/", target="_blank")),
-                  p(icon('address-card'), 'Corresponding author :', a('catherine.jutzeler@bsse.ethz.ch', href = 'mailto:catherine.jutzeler@bsse.ethz.ch')),
-                  p(icon('question-circle'), 'Troubleshooting and suggestions :', a('lucie.bourguignon@bsse.ethz.ch', href = 'mailto:lucie.bourguignon@bsse.ethz.ch?cc=catherine.jutzeler@bsse.ethz.ch&subject=Troubleshooting neurosurveillance app'))
+                  #p(icon('scroll'), a('Full text', href ="https://www.google.com/", target="_blank")),
+                  #p(icon('quote-right'), a('Citation', href ="https://www.google.com/", target="_blank")),
+                  #p(icon('github'), a('GitHub repository', href ="https://www.google.com/", target="_blank")),
+                  #p(icon('address-card'), 'Corresponding author :', a('catherine.jutzeler@bsse.ethz.ch', href = 'mailto:catherine.jutzeler@bsse.ethz.ch')),
+                  #p(icon('question-circle'), 'Troubleshooting and suggestions :', a('lucie.bourguignon@bsse.ethz.ch', href = 'mailto:lucie.bourguignon@bsse.ethz.ch?cc=catherine.jutzeler@bsse.ethz.ch&subject=Troubleshooting neurosurveillance app'))
+                  #),
+          
+          tabItem(tabName = "AboutTab",
+                  titlePanel(title = div(strong("Welcome to ", img(src="neurosurveillance_logo.png", height="35%", width="35%")))),
+                  
+                  fluidRow( # create a separation in the panel
+                    column(width = 8, # create first column for boxplot
+                           box(width = NULL, status = "primary",
+                               p(h3("Benchmarking the spontaneous functional and neurological recovery following spinal cord injury"), align = "justify"),
+                               br(),
+                               p('Traumatic spinal cord injury is a rare but devastating neurological disorder. 
+                                It constitutes a major public health issue, burdening both patients, caregivers, 
+                                as well as society on a whole. The goal of this project is to establish an 
+                                international benchmark for neurological and functional recovery after spinal 
+                                cord injury. Currently, Neurosurveillance leverages three decades of data from two 
+                                of the largest data sources in the field facilitating the analysis of temporal 
+                                trends in epidemiological landscape, providing reference values for future clinical 
+                                trials and studies, and enabling monitoring of patients on a personalized level.', align = "justify"),
+                               p('More information can be found here:', a(icon('github'), href ="https://github.com/jutzca/Neurosurveillance", target="_blank")),
+                               br(),
+                               p(h3('What You Can Do Here:')),
+                               p('This applet has', strong('three main interactive sections'), 
+                                 'that enable visitors to directly interact with the data collected 
+                                 in the EMSCI study and the Sygen clinical trial:', align = "justify"),
+                               # p('•	The Data Source Tab provides information the two data sources, 
+                               #   namely EMSCI study and the Sygen clinical trial. It further introduces you 
+                               #   to the abbreviations used within the framework of this applet.', align = "justify"),
+                               # p('•	The Visualization Tab offers an interactive interface to explore the functional 
+                               #   and neurological recovery after spinal cord injury. You can choose the data source, 
+                               #   outcome variable of interest, select the cohort of interest based in demographics and 
+                               #   injury characteristics (entire cohort or a subset thereof), and chose the variables for 
+                               #   the visualization.', align = "justify"),
+                               # p('•	The Monitoring Tab gives you the possibility to visualize and monitor the neurological and 
+                               #   functional recovery trajectory of single patients or patient groups that share very similar 
+                               #   demographics and baseline injury characteristics. As an example, if you have a patient in the 
+                               #   clinical with a certain motor score and you are interested in their recovery, you can have a 
+                               #   look at previous patients with comparable characteristics. This follows the concept of a 
+                               #   digital twin/sibling.', align = "justify"),
+                               
+                               tags$ul(align="justify",
+                                 tags$li("The Data Sources Tab provides information the two data sources, 
+                                         namely ",
+                                         a("EMSCI study", onclick = "openTab('tabEMSCI')", href="#"),
+                                         "and the ",
+                                         a("Sygen clinical trial", onclick = "openTab('tabSygen')", href="#"),
+                                         "."),
+                                 tags$li("The ",
+                                         a("Visualization", onclick = "openTab('plotsG')", href="#"),
+                                         "Tab offers an interactive interface to explore the functional 
+                                         and neurological recovery after spinal cord injury. You can choose the data source, 
+                                         outcome variable of interest, select the cohort of interest based in demographics and 
+                                         injury characteristics (entire cohort or a subset thereof), and chose the variables for 
+                                         the visualization."),
+                                 tags$li("The ",
+                                         a("Monitoring", onclick = "openTab('predictG')", href="#"),
+                                         " Tab gives you the possibility to visualize and monitor the neurological and 
+                                         functional recovery trajectory of single patients or patient groups that share very similar 
+                                         demographics and baseline injury characteristics. As an example, if you have a patient in the 
+                                         clinical with a certain motor score and you are interested in their recovery, you can have a 
+                                         look at previous patients with comparable characteristics. This follows the concept of a 
+                                         digital twin/sibling."),
+                                 tags$li("The ",
+                                         a("Abbreviation", onclick = "openTab('AbbreviationsG')", href="#"),
+                                         " Tab describes the abbreviations used within the framework of this applet.")
+                                 ),
+                               
+                               uiOutput("video"),
+                               
+                               br(),
+                               p(h3('Study team')),
+                               p(h4('Principal Investigators')),
+                               HTML(
+                                 paste('<p style="text-align:justify">',
+                                   a(icon('envelope'), href = 'mailto:catherine.jutzeler@bsse.ethz.ch'), strong('Dr. Catherine Jutzeler'),
+                                   ', Research Group Leader, Department of Biosystems Science and Engineering, ETH Zurich, Switzerland', 
+                                   '<br/>',
+                                   a(icon('envelope'), href = 'mailto:lucie.bourguignon@bsse.ethz.ch'), strong('Lucie Bourguignon'),
+                                   ', MSc. PhD Student, Department of Biosystems Science and Engineering, ETH Zurich, Switzerland', 
+                                   '<br/>',
+                                   a(icon('envelope'), href = 'mailto:john.kramer@ubc.ca'), strong('Prof. John Kramer'),
+                                   ', ICORD principle investigator, Anesthesiology, Pharmacology, and Therapeutics, 
+                                   University of British Columbia, Vancouver, Canada', 
+                                   '<br/>',
+                                   a(icon('envelope'), href = 'mailto:armin.curt@balgrist.ch'), strong('Prof. Armin Curt'),
+                                   ', Director of Balgrist Spinal Cord Injury Center and EMSCI, University Hospital Balgrist, 
+                                   Zurich, Switzerland'
+                                   )
+                                 ),
+                               p(h4('Collaborators')),
+                               p('Bobo Tong, Fred Geisler, Martin Schubert, Frank Röhrich, Marion Saur, Norbert Weidner, 
+                                 Ruediger Rupp, Yorck-Bernhard B. Kalke, Rainer Abel, Doris Maier, Lukas Grassner, 
+                                 Harvinder S. Chhabra, Thomas Liebscher, Jacquelyn J. Cragg, ',
+                                 a('EMSCI study group', href = 'https://www.emsci.org/index.php/members', target="_blank"), align = "justify"),
+                               br(),
+                               p(h3('Ethics statement')),
+                               p('All patients gave their written informed consent before being included in the EMSCI database. 
+                                 The study was performed in accordance with the Declaration of Helsinki and was approved 
+                                 by all responsible institutional review boards. The study was performed in accordance with 
+                                 the Declaration of Helsinki. If you have any questions or concerns regarding the study 
+                                 please do not hesitate to contact the Principal Investigator, ',
+                                 a('Dr. Catherine Jutzeler', href = 'mailto:catherine.jutzeler@bsse.ethz.ch'), '.', align = "justify"),
+                               br(),
+                               p(h3('Funding')),
+                               p('This project is supported by the ',
+                                 a('Swiss National Science Foundation', href = 'http://p3.snf.ch/project-186101', target="_blank"),
+                                 ' (Ambizione Grant, #PZ00P3_186101), ',
+                                 a('Wings for Life Research Foundation', href = 'https://www.wingsforlife.com/en/', target="_blank"),
+                                 ' (#2017_044), the ',
+                                 a('International Foundation for Research in Paraplegia', href = 'https://www.irp.ch/en/foundation/', target="_blank"),
+                                 ' (IRP).', align = "justify"),
+                               
+                               #p(em('In preparation')),
+                               #p('Lucie Bourguignon, Bobo Tong, Fred Geisler, Martin Schubert, Frank Röhrich, Marion Saur, Norbert Weidner, Ruediger Rupp, Yorck-Bernhard B. Kalke, Rainer Abel, Doris Maier, Lukas Grassner, Harvinder S. Chhabra, Thomas Liebscher, Jacquelyn J. Cragg, EMSCI study group, John Kramer, Armin Curt, Catherine R. Jutzeler'),
+                               #
+                               #p(icon('scroll'), a('Full text', href ="https://www.google.com/", target="_blank")),
+                               #p(icon('quote-right'), a('Citation', href ="https://www.google.com/", target="_blank")),
+                               #p(icon('github'), a('GitHub repository with analysis', href ="https://github.com/jutzca/Systemic-effects-of-Spinal-Cord-Injury", target="_blank")),
+                               #p(icon('github'), a('GitHub repository with shiny app', href ="https://github.com/jutzca/Neurosurveillance", target="_blank")),
+                               
+                           
+                           ), # end box
+                           tags$style(".small-box{border-radius: 15px}"),
+                           valueBox("5000+", "Patients", icon = icon("hospital-user"), width = 3, color = "blue"),
+                           valueBox("15", "Countries", icon = icon("globe-europe"), width = 3, color = "blue"),
+                           valueBox("20", "Years", icon = icon("calendar-alt"), width = 3, color = "blue"),
+                           valueBox("50+", "Researchers", icon = icon("user-cog"), width = 3, color = "blue")#,
+                    ), # end column
+                    column(width = 4, # create first column for boxplot
+                           box(width = NULL, status = "primary",
+                               tags$div(
+                                 HTML('<a href="https://twitter.com/Neurosurv_Sci?ref_src=twsrc%5Etfw" class="twitter-follow-button" data-show-count="false">Follow @Neurosurv_Sci</a><script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>')
+                               ),
+                               tags$div(
+                                 HTML('<a class="twitter-timeline" data-height="1800" data-theme="light" href="https://twitter.com/Neurosurv_Sci?ref_src=twsrc%5Etfw">Tweets by Neurosurv_Sci</a> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>')
+                               )) # end box
+                    ) # end column
+                  ), # end fluidRow
+                  
+                  # fluidRow(tags$style(".small-box{border-radius: 15px}"),
+                  #          
+                  #          #valueBox("123", subtitle = "321", width = 3)
+                  #   valueBox("5000+", "Participants", icon = icon("hospital-user"), width = 3, color = "blue"),
+                  #   valueBox("15", "Countries", icon = icon("globe-europe"), width = 3, color = "blue"),
+                  #   valueBox("20", "Years", icon = icon("calendar-alt"), width = 3, color = "blue"),
+                  #   valueBox("50+", "Researchers", icon = icon("user-cog"), width = 3, color = "blue")#,
+                  #   #valueBox(404, "Something", icon = icon("project-diagram"), width = 3)
+                  # ), # end fluidRow
+                  
+                  shinyjs::useShinyjs(),
+                  tags$footer(HTML("<strong>Copyright &copy; 2020 <a href=\"https://github.com/jutzca/Neurosurveillance\" target=\"_blank\">Neurosurveillance</a>.</strong> 
+                   <br>This work is licensed under a <a rel=\"license\" href=\"http://creativecommons.org/licenses/by-nc-nd/4.0/\" target=\"_blank\">Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License</a>.
+                   <br><a rel=\"license\" href=\"http://creativecommons.org/licenses/by-nc-nd/4.0/\" target=\"_blank\"><img alt=\"Creative Commons License\" style=\"border-width:0\" src=\"https://i.creativecommons.org/l/by-nc-nd/4.0/88x31.png\" /></a>
+                   <br>Last updated:<br>"), 
+                              latest.DateTime,
+                              id = "sideFooter",
+                              align = "left",
+                              style = "
+                  position:absolute;
+                  bottom:0;
+                  width:100%;
+                  padding: 10px;
+                  "
+                  )
+          ), # end tabItem
+          
+          tabItem(tabName = "dashboard",
+                  #box(width = NULL, status = "primary",
+                  #    p('Choose the dataset, and feature to display in the side bar.')
+                  #    )
                   ),
           
           tabItem(tabName = "tabEMSCI",
                   titlePanel(title = div(strong("European Multicenter Study about Spinal Cord Injury"))),
-                  #img(src="EMSCI_presentation",  height="20%", width="20%")
                   fluidRow( # create a separation in the panel
                     column(width = 12, # create first column for boxplot
                            box(width = NULL, status = "primary",
                                img(src="EMSCI_presentation.png", height="50%", width="50%", align = 'center'))
-                              #p('The', a(strong('European multicenter study about spinal cord injury (EMSCI)'), href='https://www.emsci.org/', target="_blank"),  
-                              #' is a longitudinal observational study involving 22 SCI centers across Europe and India.', align = "justify"#,
-                              #p('Data from', strong('more than 5,000 patients'), 'have been collected', 
-                              #  strong('since 2001'), ', making it one of the largest spinal cord injury (SCI) biobank.'),
-                              #p('It gathers together information about', strong('patient and injury characteristics', align = "justify"),
-                              #  'as well as', strong('neurological and functional outcomes'), 'according to a fixed 
-                              #  time schedule. Overall, each variable is reported 5 times : at', 
-                              #  strong('very acute, acute I, acute II, acute III and chronic stages'), 
-                              #  '(see details in the table below).', align = "justify")
-                           #)#,#end box
-                           #box(width = NULL, status = "primary", align = 'center',
-                               #img(src="try.png"))
                     )#end column
                   )#end fluidRow
           ), #end tabItem
@@ -296,13 +462,6 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                     column(width = 12, # create first column for boxplot
                            box(width = NULL, status = "primary",
                                img(src="sygen_summary.png", height="60%", width="60%", align = 'center'),
-                              #p('The ', strong('Sygen data source'), 'is the result of a ', strong('multi-center prospective phase III 
-                              #  clinical trial'), ' evaluating the efficacy of GM-1 ganglioside in treating acute spinal cord injury (SCI).', align = "justify"), 
-                              #p('From ', strong('1992'), ' to', strong('1998'), ', ',  strong('797 patients'),' with traumatic 
-                              #  SCI were included across the United States of America (USA). 
-                              #  Throughout the trial,', strong('patient and injury characteristics, neurological and functional 
-                              #  outcomes'), 'as well as', strong('hematological markers'), 'were periodically collected, 
-                              #  with up to 9 measurements per marker (baseline, 1, 2, 4, 8, 16, 26, 52, 52+ weeks after injury).', align = "justify"),
                               p(''),
                               p('Full design, recruitment and enrollment details can be found ', 
                                 a(strong('here'), 
@@ -387,30 +546,35 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
           #         ) #end fluidRow
           #         ), #end tabItem
           
-          tabItem(tabName = "AboutTab",
-                  titlePanel(title = div(strong("Welcome to the Neurosurveillance tool"))),
-                  fluidRow( # create a separation in the panel
-                    column(width = 8, # create first column for boxplot
-                           box(width = NULL, status = "primary",
-                               p('This interface is meant to help visualising findings reported in :'),
-                               titlePanel(strong("Benchmarking the spontaneous functional and neurological recovery following spinal cord injury: A European population-based surveillance study from 2001 to 2019")),
-                               #p(em('In preparation')),
-                               p('Lucie Bourguignon, Bobo Tong, Fred Geisler, Martin Schubert, Frank Röhrich, Marion Saur, Norbert Weidner, Ruediger Rupp, Yorck-Bernhard B. Kalke, Rainer Abel, Doris Maier, Lukas Grassner, Harvinder S. Chhabra, Thomas Liebscher, Jacquelyn J. Cragg, EMSCI study group, John Kramer, Armin Curt, Catherine R. Jutzeler'),
-                               # 
-                               #p('Add some description here'),
-                               p(icon('scroll'), a('Full text', href ="https://www.google.com/", target="_blank")),
-                               p(icon('quote-right'), a('Citation', href ="https://www.google.com/", target="_blank")),
-                               p(icon('github'), a('GitHub repository with analysis', href ="https://github.com/jutzca/Systemic-effects-of-Spinal-Cord-Injury", target="_blank")),
-                               p(icon('github'), a('GitHub repository with shiny app', href ="https://github.com/jutzca/Neurosurveillance", target="_blank"))
-                           ) # end box
-                    ), # end column
-                    #column(width = 4, # create first column for boxplot
-                    #       box(width = NULL, status = "primary",
-                    #           HTML("<a class=\"twitter-timeline\" data-height=\"600\" href=\"https://twitter.com/Jutzeler_Cathy\">Catherine Jutzeler</a> <script async src=\"https://platform.twitter.com/widgets.js\" charset=\"utf-8\"></script>")
-                    #       ) # end box
-                    #) # end column
-                  ) # end fluidRow
-          ), # end tabItem
+          # tabItem(tabName = "AboutTab",
+          #         titlePanel(title = div(strong("Welcome to ", img(src="neurosurveillance_logo.png", height="35%", width="35%")))),
+          #   
+          #         fluidRow( # create a separation in the panel
+          #           column(width = 8, # create first column for boxplot
+          #                  box(width = NULL, status = "primary",
+          #                      p('This interface is meant to help visualising findings reported in :'),
+          #                      titlePanel(strong("Benchmarking the spontaneous functional and neurological recovery following spinal cord injury: An international population-based surveillance study")),
+          #                      #p(em('In preparation')),
+          #                      p('Lucie Bourguignon, Bobo Tong, Fred Geisler, Martin Schubert, Frank Röhrich, Marion Saur, Norbert Weidner, Ruediger Rupp, Yorck-Bernhard B. Kalke, Rainer Abel, Doris Maier, Lukas Grassner, Harvinder S. Chhabra, Thomas Liebscher, Jacquelyn J. Cragg, EMSCI study group, John Kramer, Armin Curt, Catherine R. Jutzeler'),
+          #                      # 
+          #                      #p('Add some description here'),
+          #                      p(icon('scroll'), a('Full text', href ="https://www.google.com/", target="_blank")),
+          #                      p(icon('quote-right'), a('Citation', href ="https://www.google.com/", target="_blank")),
+          #                      p(icon('github'), a('GitHub repository with analysis', href ="https://github.com/jutzca/Systemic-effects-of-Spinal-Cord-Injury", target="_blank")),
+          #                      p(icon('github'), a('GitHub repository with shiny app', href ="https://github.com/jutzca/Neurosurveillance", target="_blank"))
+          #                  ) # end box
+          #           ), # end column
+          #           column(width = 4, # create first column for boxplot
+          #                  box(width = NULL, status = "primary",
+          #                      tags$div(
+          #                        HTML('<a href="https://twitter.com/Neurosurv_Sci?ref_src=twsrc%5Etfw" class="twitter-follow-button" data-show-count="false">Follow @Neurosurv_Sci</a><script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>')
+          #                      ),
+          #                      tags$div(
+          #                        HTML('<a class="twitter-timeline" href="https://twitter.com/Neurosurv_Sci?ref_src=twsrc%5Etfw">Tweets by Neurosurv_Sci</a> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>')
+          #                      )) # end box
+          #           ) # end column
+          #         ) # end fluidRow
+          # ), # end tabItem
           
           tabItem(tabName = "PlotsTab",
                   #p('This is a disclaimer'),
@@ -437,7 +601,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_UEMS_EMSCI == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_UEMS_EMSCI", # create new check box group
                                                                                   label = "Subsetting criteria:", # label of the box
-                                                                                  choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
+                                                                                  choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                   selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
 
@@ -511,7 +675,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5', 
+                                                                                                   "Level of injury" = '5', 
                                                                                                    "Country" = '6', 
                                                                                                    "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
@@ -572,7 +736,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_RUEMS_EMSCI == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_RUEMS_EMSCI", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -646,7 +810,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5', 
+                                                                                                   "Level of injury" = '5', 
                                                                                                    "Country" = '6', 
                                                                                                    "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
@@ -707,7 +871,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_LUEMS_EMSCI == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_LUEMS_EMSCI", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -781,7 +945,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5', 
+                                                                                                   "Level of injury" = '5', 
                                                                                                    "Country" = '6', 
                                                                                                    "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
@@ -842,7 +1006,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_LEMS_EMSCI == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_LEMS_EMSCI", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -916,7 +1080,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5', 
+                                                                                                   "Level of injury" = '5', 
                                                                                                    "Country" = '6', 
                                                                                                    "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
@@ -977,7 +1141,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_RLEMS_EMSCI == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_RLEMS_EMSCI", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -1051,7 +1215,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5', 
+                                                                                                   "Level of injury" = '5', 
                                                                                                    "Country" = '6', 
                                                                                                    "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
@@ -1112,7 +1276,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_LLEMS_EMSCI == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_LLEMS_EMSCI", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -1186,7 +1350,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5', 
+                                                                                                   "Level of injury" = '5', 
                                                                                                    "Country" = '6', 
                                                                                                    "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
@@ -1247,7 +1411,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_RMS_EMSCI == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_RMS_EMSCI", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -1321,7 +1485,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5', 
+                                                                                                   "Level of injury" = '5', 
                                                                                                    "Country" = '6', 
                                                                                                    "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
@@ -1382,7 +1546,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_LMS_EMSCI == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_LMS_EMSCI", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -1456,7 +1620,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5', 
+                                                                                                   "Level of injury" = '5', 
                                                                                                    "Country" = '6', 
                                                                                                    "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
@@ -1517,7 +1681,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_TMS_EMSCI == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_TMS_EMSCI", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -1591,7 +1755,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5', 
+                                                                                                   "Level of injury" = '5', 
                                                                                                    "Country" = '6', 
                                                                                                    "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
@@ -1652,7 +1816,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_RPP_EMSCI == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_RPP_EMSCI", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -1726,7 +1890,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5', 
+                                                                                                   "Level of injury" = '5', 
                                                                                                    "Country" = '6', 
                                                                                                    "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
@@ -1787,7 +1951,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_LPP_EMSCI == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_LPP_EMSCI", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -1861,7 +2025,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5', 
+                                                                                                   "Level of injury" = '5', 
                                                                                                    "Country" = '6', 
                                                                                                    "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
@@ -1922,7 +2086,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_TPP_EMSCI == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_TPP_EMSCI", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -1996,7 +2160,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5', 
+                                                                                                   "Level of injury" = '5', 
                                                                                                    "Country" = '6', 
                                                                                                    "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
@@ -2057,7 +2221,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_RLT_EMSCI == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_RLT_EMSCI", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -2131,7 +2295,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5', 
+                                                                                                   "Level of injury" = '5', 
                                                                                                    "Country" = '6', 
                                                                                                    "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
@@ -2192,7 +2356,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_LLT_EMSCI == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_LLT_EMSCI", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -2266,7 +2430,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5', 
+                                                                                                   "Level of injury" = '5', 
                                                                                                    "Country" = '6', 
                                                                                                    "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
@@ -2327,7 +2491,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_TLT_EMSCI == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_TLT_EMSCI", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -2401,7 +2565,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5', 
+                                                                                                   "Level of injury" = '5', 
                                                                                                    "Country" = '6', 
                                                                                                    "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
@@ -2462,7 +2626,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_WISCI_EMSCI == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_WISCI_EMSCI", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -2536,7 +2700,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5', 
+                                                                                                   "Level of injury" = '5', 
                                                                                                    "Country" = '6', 
                                                                                                    "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
@@ -2597,7 +2761,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_test_6min_EMSCI == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_test_6min_EMSCI", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -2671,7 +2835,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5', 
+                                                                                                   "Level of injury" = '5', 
                                                                                                    "Country" = '6', 
                                                                                                    "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
@@ -2732,7 +2896,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_test_10m_EMSCI == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_test_10m_EMSCI", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -2806,7 +2970,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5', 
+                                                                                                   "Level of injury" = '5', 
                                                                                                    "Country" = '6', 
                                                                                                    "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
@@ -2868,7 +3032,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_TUG_EMSCI == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_TUG_EMSCI", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -2942,7 +3106,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5', 
+                                                                                                   "Level of injury" = '5', 
                                                                                                    "Country" = '6', 
                                                                                                    "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
@@ -3003,7 +3167,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_SCIM2_EMSCI == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_SCIM2_EMSCI", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -3077,7 +3241,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5', 
+                                                                                                   "Level of injury" = '5', 
                                                                                                    "Country" = '6', 
                                                                                                    "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
@@ -3138,7 +3302,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_SCIM3_EMSCI == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_SCIM3_EMSCI", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5', "Country" = '6', "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -3212,7 +3376,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5', 
+                                                                                                   "Level of injury" = '5', 
                                                                                                    "Country" = '6', 
                                                                                                    "Year of injury" = '7'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
@@ -3275,7 +3439,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_UEMS_Sygen == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_UEMS_Sygen", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5'),
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5'),
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -3327,7 +3491,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5'), # choices are the different filters that can be applied
+                                                                                                   "Level of injury" = '5'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                             ), # end box
@@ -3448,7 +3612,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                      #                         box(status = "primary", width = NULL, # create new box
                                      #                             checkboxGroupInput(inputId = "checkGroup_UEMS_Sygen", # create new check box group
                                      #                                                label = "Criteria:", # label of the box
-                                     #                                                choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5'), # choices are the different filters that can be applied
+                                     #                                                choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5'), # choices are the different filters that can be applied
                                      #                                                selected = c('1','4')) # by default, sex and AIS grades are selected
                                      #                         ) # end box
                                      #        ), # end conditionalPanel
@@ -3524,7 +3688,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_LEMS_Sygen == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_LEMS_Sygen", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5'),
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5'),
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -3576,7 +3740,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5'), # choices are the different filters that can be applied
+                                                                                                   "Level of injury" = '5'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                             ), # end box
@@ -3635,7 +3799,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_TEMS_Sygen == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_TEMS_Sygen", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5'),
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5'),
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -3687,7 +3851,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5'), # choices are the different filters that can be applied
+                                                                                                   "Level of injury" = '5'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                             ), # end box
@@ -3746,7 +3910,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_RMS_Sygen == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_RMS_Sygen", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5'),
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5'),
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -3798,7 +3962,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5'), # choices are the different filters that can be applied
+                                                                                                   "Level of injury" = '5'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                             ), # end box
@@ -3857,7 +4021,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_LMS_Sygen == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_LMS_Sygen", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5'),
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5'),
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -3909,7 +4073,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5'), # choices are the different filters that can be applied
+                                                                                                   "Level of injury" = '5'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                             ), # end box
@@ -3968,7 +4132,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_TMS_Sygen == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_TMS_Sygen", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5'),
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5'),
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -4020,7 +4184,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5'), # choices are the different filters that can be applied
+                                                                                                   "Level of injury" = '5'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                             ), # end box
@@ -4080,7 +4244,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_RPP_Sygen == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_RPP_Sygen", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5'),
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5'),
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -4132,7 +4296,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5'), # choices are the different filters that can be applied
+                                                                                                   "Level of injury" = '5'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                             ), # end box
@@ -4191,7 +4355,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_LPP_Sygen == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_LPP_Sygen", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5'),
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5'),
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -4243,7 +4407,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5'), # choices are the different filters that can be applied
+                                                                                                   "Level of injury" = '5'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                             ), # end box
@@ -4302,7 +4466,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_TPP_Sygen == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_TPP_Sygen", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5'),
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5'),
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -4354,7 +4518,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5'), # choices are the different filters that can be applied
+                                                                                                   "Level of injury" = '5'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                             ), # end box
@@ -4413,7 +4577,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_RLT_Sygen == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_RLT_Sygen", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5'),
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5'),
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -4465,7 +4629,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5'), # choices are the different filters that can be applied
+                                                                                                   "Level of injury" = '5'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                             ), # end box
@@ -4524,7 +4688,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_LLT_Sygen == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_LLT_Sygen", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5'),
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5'),
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -4576,7 +4740,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5'), # choices are the different filters that can be applied
+                                                                                                   "Level of injury" = '5'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                             ), # end box
@@ -4635,7 +4799,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_TLT_Sygen == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_TLT_Sygen", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5'),
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5'),
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -4687,7 +4851,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5'), # choices are the different filters that can be applied
+                                                                                                   "Level of injury" = '5'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                             ), # end box
@@ -4746,7 +4910,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_Benzel_Sygen == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_Benzel_Sygen", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5'),
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5'),
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -4798,7 +4962,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                                    "Age at injury" = '2', 
                                                                                                    "Cause of SCI" = '3', 
                                                                                                    "AIS grade" = '4', 
-                                                                                                   "NLI" = '5'), # choices are the different filters that can be applied
+                                                                                                   "Level of injury" = '5'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                             ), # end box
@@ -4917,7 +5081,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                   #                                            box(status = "primary", width = NULL, # create new box
                   #                                                checkboxGroupInput(inputId = "checkGroup_RMS_SCI_rehab", # create new check box group
                   #                                                                   label = "Criteria:", # label of the box
-                  #                                                                   choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5'), # choices are the different filters that can be applied
+                  #                                                                   choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5'), # choices are the different filters that can be applied
                   #                                                                   selected = c('1','4')) # by default, sex and AIS grades are selected
                   #                                            ) # end box
                   #                           ), # end conditionalPanel
@@ -5049,7 +5213,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                   #                                            box(status = "primary", width = NULL, # create new box
                   #                                                checkboxGroupInput(inputId = "checkGroup_LMS_SCI_rehab", # create new check box group
                   #                                                                   label = "Criteria:", # label of the box
-                  #                                                                   choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5'), # choices are the different filters that can be applied
+                  #                                                                   choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5'), # choices are the different filters that can be applied
                   #                                                                   selected = c('1','4')) # by default, sex and AIS grades are selected
                   #                                            ) # end box
                   #                           ), # end conditionalPanel
@@ -5181,7 +5345,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                   #                                            box(status = "primary", width = NULL, # create new box
                   #                                                checkboxGroupInput(inputId = "checkGroup_TMS_SCI_rehab", # create new check box group
                   #                                                                   label = "Criteria:", # label of the box
-                  #                                                                   choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5'), # choices are the different filters that can be applied
+                  #                                                                   choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5'), # choices are the different filters that can be applied
                   #                                                                   selected = c('1','4')) # by default, sex and AIS grades are selected
                   #                                            ) # end box
                   #                           ), # end conditionalPanel
@@ -5313,7 +5477,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                   #                                            box(status = "primary", width = NULL, # create new box
                   #                                                checkboxGroupInput(inputId = "checkGroup_PHYIND_SCI_rehab", # create new check box group
                   #                                                                   label = "Criteria:", # label of the box
-                  #                                                                   choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5'), # choices are the different filters that can be applied
+                  #                                                                   choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5'), # choices are the different filters that can be applied
                   #                                                                   selected = c('1','4')) # by default, sex and AIS grades are selected
                   #                                            ) # end box
                   #                           ), # end conditionalPanel
@@ -5445,7 +5609,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                   #                                            box(status = "primary", width = NULL, # create new box
                   #                                                checkboxGroupInput(inputId = "checkGroup_MOBILITY_SCI_rehab", # create new check box group
                   #                                                                   label = "Criteria:", # label of the box
-                  #                                                                   choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5'), # choices are the different filters that can be applied
+                  #                                                                   choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5'), # choices are the different filters that can be applied
                   #                                                                   selected = c('1','4')) # by default, sex and AIS grades are selected
                   #                                            ) # end box
                   #                           ), # end conditionalPanel
@@ -5577,7 +5741,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                   #                                            box(status = "primary", width = NULL, # create new box
                   #                                                checkboxGroupInput(inputId = "checkGroup_OCCUPATION_SCI_rehab", # create new check box group
                   #                                                                   label = "Criteria:", # label of the box
-                  #                                                                   choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5'), # choices are the different filters that can be applied
+                  #                                                                   choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5'), # choices are the different filters that can be applied
                   #                                                                   selected = c('1','4')) # by default, sex and AIS grades are selected
                   #                                            ) # end box
                   #                           ), # end conditionalPanel
@@ -5709,7 +5873,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                   #                                            box(status = "primary", width = NULL, # create new box
                   #                                                checkboxGroupInput(inputId = "checkGroup_SOCIAL_SCI_rehab", # create new check box group
                   #                                                                   label = "Criteria:", # label of the box
-                  #                                                                   choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "NLI" = '5'), # choices are the different filters that can be applied
+                  #                                                                   choices = list("Sex" = '1', "Age at injury" = '2', "Cause of SCI" = '3', "AIS grade" = '4', "Level of injury" = '5'), # choices are the different filters that can be applied
                   #                                                                   selected = c('1','4')) # by default, sex and AIS grades are selected
                   #                                            ) # end box
                   #                           ), # end conditionalPanel
@@ -5783,7 +5947,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_RMS_All == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_RMS_All", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "AIS grade" = '3', "NLI" = '4'),
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "AIS grade" = '3', "Level of injury" = '4'),
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -5827,7 +5991,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                     choices = list("Sex" = '1', 
                                                                                                    "Age at injury" = '2', 
                                                                                                    "AIS grade" = '3', 
-                                                                                                   "NLI" = '4'), # choices are the different filters that can be applied
+                                                                                                   "Level of injury" = '4'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                             ), # end box
@@ -5890,7 +6054,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                      #                         box(status = "primary", width = NULL, # create new box
                                      #                             checkboxGroupInput(inputId = "checkGroup_RMS_All", # create new check box group
                                      #                                                label = "Criteria:", # label of the box
-                                     #                                                choices = list("Sex" = '1', "Age at injury" = '2', "AIS grade" = '3', "NLI" = '4'), # choices are the different filters that can be applied
+                                     #                                                choices = list("Sex" = '1', "Age at injury" = '2', "AIS grade" = '3', "Level of injury" = '4'), # choices are the different filters that can be applied
                                      #                                                selected = c('1','4')) # by default, sex and AIS grades are selected
                                      #                         ) # end box
                                      #        ), # end conditionalPanel
@@ -5955,7 +6119,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_LMS_All == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_LMS_All", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "AIS grade" = '3', "NLI" = '4'),
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "AIS grade" = '3', "Level of injury" = '4'),
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -5999,7 +6163,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                     choices = list("Sex" = '1', 
                                                                                                    "Age at injury" = '2', 
                                                                                                    "AIS grade" = '3', 
-                                                                                                   "NLI" = '4'), # choices are the different filters that can be applied
+                                                                                                   "Level of injury" = '4'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                             ), # end box
@@ -6028,7 +6192,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                 conditionalPanel(condition = "input.subset_TMS_All == 0", # if user decides to not display all data and apply filters, make a new panel appear
                                                                  checkboxGroupInput(inputId = "checksub_TMS_All", # create new check box group
                                                                                     label = "Subsetting criteria:", # label of the box
-                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "AIS grade" = '3', "NLI" = '4'),
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "AIS grade" = '3', "Level of injury" = '4'),
                                                                                     selected = NULL) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                                 
@@ -6072,7 +6236,591 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                                                                     choices = list("Sex" = '1', 
                                                                                                    "Age at injury" = '2', 
                                                                                                    "AIS grade" = '3', 
-                                                                                                   "NLI" = '4'), # choices are the different filters that can be applied
+                                                                                                   "Level of injury" = '4'), # choices are the different filters that can be applied
+                                                                                    selected = c('1','4')) # by default, sex and AIS grades are selected
+                                                ), # end conditionalPanel
+                                            ), # end box
+                                     ) # end column
+                                   ) #end fluidRow
+                  ),
+                  
+                  conditionalPanel(condition = "input.choose_data == 'All' && input.choose_cat_scores == 'neuro' && input.All_neuro == 'UEMS'", # based on user inputs, display different plots
+                                   htmlOutput("title_UEMS_All"), # make title based on user inputs (score and dataset)
+                                   fluidRow( # create a separation in the panel
+                                     column(width = 8, # create first column for boxplot
+                                            box(width = NULL, status = "primary", # create box to display plot
+                                                align="center", # center the plot
+                                                #textOutput('test_text')) # used for testing the user inputs formats to adapt the plotting function
+                                                plotOutput('plot_UEMS_All', height = 660)) # call server plot function for the score and dataset chosen by the user #end box 
+                                     ), # end column
+                                     
+                                     column(width = 4, # create second column for second type of user inputs (filters)
+                                            
+                                            box(status = "primary", width = NULL, # create box 
+                                                radioButtons("subset_UEMS_All",
+                                                             label = "Select subset of the cohort ?",
+                                                             choices = c("No" = 1, 'Yes' = 0), 
+                                                             selected = 1), # checkbox to go to basic plot: no filters, all patients, x-axis=stages, y-axis=value of score
+                                                
+                                                conditionalPanel(condition = "input.subset_UEMS_All == 0", # if user decides to not display all data and apply filters, make a new panel appear
+                                                                 checkboxGroupInput(inputId = "checksub_UEMS_All", # create new check box group
+                                                                                    label = "Subsetting criteria:", # label of the box
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "AIS grade" = '3', "Level of injury" = '4'),
+                                                                                    selected = NULL) # by default, sex and AIS grades are selected
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_UEMS_All == 0 && input.checksub_UEMS_All.includes('1')", # if user chooses to filter based on sex
+                                                                 checkboxGroupInput(inputId = "sex_UEMS_All", # create new check box group
+                                                                                    label = "Sex:", # label of the box
+                                                                                    choices = list("Male", "Female"), # choices are male and female (match the levels in All dataset)
+                                                                                    selected = c("Male", "Female")) # by default, both male and female are selected
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_UEMS_All == 0 && input.checksub_UEMS_All.includes('2')", # if user chooses to filter based on age
+                                                                 checkboxGroupInput(inputId = "age_UEMS_All", # create new check box group
+                                                                                    label = "Age at injury:", # label of the box
+                                                                                    choices = list("0-19", "20-39", "40-59", "60-79", "80+"),
+                                                                                    selected = c("0-19", "20-39", "40-59", "60-79", "80+")) # by default, all categories are selected
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_UEMS_All == 0 && input.checksub_UEMS_All.includes('3')", # if user chooses to filter based on AIS grade
+                                                                 checkboxGroupInput(inputId = "grade_UEMS_All", # create new check box group
+                                                                                    label = "AIS grade:", # label of the box
+                                                                                    choices = list("AIS A", "AIS B", "AIS C", "AIS D"), # choices (match the levels in All dataset), missing AIS grades will automatically be removed
+                                                                                    selected = c("AIS A", "AIS B", "AIS C", "AIS D")) # by default, all grades are selected but missing grades
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_UEMS_All == 0 && input.checksub_UEMS_All.includes('4')", # if user chooses to filter based on neurological level of injury
+                                                                 checkboxGroupInput(inputId = "level_UEMS_All", # create new check box group
+                                                                                    label = "Neurological level of injury:", # label of the box
+                                                                                    choices = list("cervical", "lumbar", 'sacral', "thoracic"), # choices (match the levels in All dataset)
+                                                                                    selected = c("cervical", "lumbar", 'sacral', "thoracic")) # by default, all categories are selected
+                                                ) # end conditionalPanel
+                                            ), # end box
+                                            
+                                            box(status = "primary", width = NULL, # create box 
+                                                radioButtons("checkbox_UEMS_All",
+                                                             label = "How do you want to visualise the data?",
+                                                             choices = c("Default" = 1, 'Customize (display by subgroups)' = 0), 
+                                                             selected = 1), # checkbox to go to basic plot: no filters, all patients, x-axis=stages, y-axis=value of score
+                                                conditionalPanel(condition = "input.checkbox_UEMS_All == 0", # if user decides to not display all data and apply filters, make a new panel appear
+                                                                 checkboxGroupInput(inputId = "checkGroup_UEMS_All", # create new check box group
+                                                                                    label = "Visualisation criteria:", # label of the box
+                                                                                    choices = list("Sex" = '1', 
+                                                                                                   "Age at injury" = '2', 
+                                                                                                   "AIS grade" = '3', 
+                                                                                                   "Level of injury" = '4'), # choices are the different filters that can be applied
+                                                                                    selected = c('1','4')) # by default, sex and AIS grades are selected
+                                                ), # end conditionalPanel
+                                            ), # end box
+                                     ) # end column
+                                   ) #end fluidRow
+                  ),
+                  
+                  conditionalPanel(condition = "input.choose_data == 'All' && input.choose_cat_scores == 'neuro' && input.All_neuro == 'LEMS'", # based on user inputs, display different plots
+                                   htmlOutput("title_LEMS_All"), # make title based on user inputs (score and dataset)
+                                   fluidRow( # create a separation in the panel
+                                     column(width = 8, # create first column for boxplot
+                                            box(width = NULL, status = "primary", # create box to display plot
+                                                align="center", # center the plot
+                                                #textOutput('test_text')) # used for testing the user inputs formats to adapt the plotting function
+                                                plotOutput('plot_LEMS_All', height = 660)) # call server plot function for the score and dataset chosen by the user #end box 
+                                     ), # end column
+                                     
+                                     column(width = 4, # create second column for second type of user inputs (filters)
+                                            
+                                            box(status = "primary", width = NULL, # create box 
+                                                radioButtons("subset_LEMS_All",
+                                                             label = "Select subset of the cohort ?",
+                                                             choices = c("No" = 1, 'Yes' = 0), 
+                                                             selected = 1), # checkbox to go to basic plot: no filters, all patients, x-axis=stages, y-axis=value of score
+                                                
+                                                conditionalPanel(condition = "input.subset_LEMS_All == 0", # if user decides to not display all data and apply filters, make a new panel appear
+                                                                 checkboxGroupInput(inputId = "checksub_LEMS_All", # create new check box group
+                                                                                    label = "Subsetting criteria:", # label of the box
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "AIS grade" = '3', "Level of injury" = '4'),
+                                                                                    selected = NULL) # by default, sex and AIS grades are selected
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_LEMS_All == 0 && input.checksub_LEMS_All.includes('1')", # if user chooses to filter based on sex
+                                                                 checkboxGroupInput(inputId = "sex_LEMS_All", # create new check box group
+                                                                                    label = "Sex:", # label of the box
+                                                                                    choices = list("Male", "Female"), # choices are male and female (match the levels in All dataset)
+                                                                                    selected = c("Male", "Female")) # by default, both male and female are selected
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_LEMS_All == 0 && input.checksub_LEMS_All.includes('2')", # if user chooses to filter based on age
+                                                                 checkboxGroupInput(inputId = "age_LEMS_All", # create new check box group
+                                                                                    label = "Age at injury:", # label of the box
+                                                                                    choices = list("0-19", "20-39", "40-59", "60-79", "80+"),
+                                                                                    selected = c("0-19", "20-39", "40-59", "60-79", "80+")) # by default, all categories are selected
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_LEMS_All == 0 && input.checksub_LEMS_All.includes('3')", # if user chooses to filter based on AIS grade
+                                                                 checkboxGroupInput(inputId = "grade_LEMS_All", # create new check box group
+                                                                                    label = "AIS grade:", # label of the box
+                                                                                    choices = list("AIS A", "AIS B", "AIS C", "AIS D"), # choices (match the levels in All dataset), missing AIS grades will automatically be removed
+                                                                                    selected = c("AIS A", "AIS B", "AIS C", "AIS D")) # by default, all grades are selected but missing grades
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_LEMS_All == 0 && input.checksub_LEMS_All.includes('4')", # if user chooses to filter based on neurological level of injury
+                                                                 checkboxGroupInput(inputId = "level_LEMS_All", # create new check box group
+                                                                                    label = "Neurological level of injury:", # label of the box
+                                                                                    choices = list("cervical", "lumbar", 'sacral', "thoracic"), # choices (match the levels in All dataset)
+                                                                                    selected = c("cervical", "lumbar", 'sacral', "thoracic")) # by default, all categories are selected
+                                                ) # end conditionalPanel
+                                            ), # end box
+                                            
+                                            box(status = "primary", width = NULL, # create box 
+                                                radioButtons("checkbox_LEMS_All",
+                                                             label = "How do you want to visualise the data?",
+                                                             choices = c("Default" = 1, 'Customize (display by subgroups)' = 0), 
+                                                             selected = 1), # checkbox to go to basic plot: no filters, all patients, x-axis=stages, y-axis=value of score
+                                                conditionalPanel(condition = "input.checkbox_LEMS_All == 0", # if user decides to not display all data and apply filters, make a new panel appear
+                                                                 checkboxGroupInput(inputId = "checkGroup_LEMS_All", # create new check box group
+                                                                                    label = "Visualisation criteria:", # label of the box
+                                                                                    choices = list("Sex" = '1', 
+                                                                                                   "Age at injury" = '2', 
+                                                                                                   "AIS grade" = '3', 
+                                                                                                   "Level of injury" = '4'), # choices are the different filters that can be applied
+                                                                                    selected = c('1','4')) # by default, sex and AIS grades are selected
+                                                ), # end conditionalPanel
+                                            ), # end box
+                                     ) # end column
+                                   ) #end fluidRow
+                  ),
+                  
+                  conditionalPanel(condition = "input.choose_data == 'All' && input.choose_cat_scores == 'neuro' && input.All_neuro == 'RPP'", # based on user inputs, display different plots
+                                   htmlOutput("title_RPP_All"), # make title based on user inputs (score and dataset)
+                                   fluidRow( # create a separation in the panel
+                                     column(width = 8, # create first column for boxplot
+                                            box(width = NULL, status = "primary", # create box to display plot
+                                                align="center", # center the plot
+                                                #textOutput('test_text')) # used for testing the user inputs formats to adapt the plotting function
+                                                plotOutput('plot_RPP_All', height = 660)) # call server plot function for the score and dataset chosen by the user #end box 
+                                     ), # end column
+                                     
+                                     column(width = 4, # create second column for second type of user inputs (filters)
+                                            
+                                            box(status = "primary", width = NULL, # create box 
+                                                radioButtons("subset_RPP_All",
+                                                             label = "Select subset of the cohort ?",
+                                                             choices = c("No" = 1, 'Yes' = 0), 
+                                                             selected = 1), # checkbox to go to basic plot: no filters, all patients, x-axis=stages, y-axis=value of score
+                                                
+                                                conditionalPanel(condition = "input.subset_RPP_All == 0", # if user decides to not display all data and apply filters, make a new panel appear
+                                                                 checkboxGroupInput(inputId = "checksub_RPP_All", # create new check box group
+                                                                                    label = "Subsetting criteria:", # label of the box
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "AIS grade" = '3', "Level of injury" = '4'),
+                                                                                    selected = NULL) # by default, sex and AIS grades are selected
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_RPP_All == 0 && input.checksub_RPP_All.includes('1')", # if user chooses to filter based on sex
+                                                                 checkboxGroupInput(inputId = "sex_RPP_All", # create new check box group
+                                                                                    label = "Sex:", # label of the box
+                                                                                    choices = list("Male", "Female"), # choices are male and female (match the levels in All dataset)
+                                                                                    selected = c("Male", "Female")) # by default, both male and female are selected
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_RPP_All == 0 && input.checksub_RPP_All.includes('2')", # if user chooses to filter based on age
+                                                                 checkboxGroupInput(inputId = "age_RPP_All", # create new check box group
+                                                                                    label = "Age at injury:", # label of the box
+                                                                                    choices = list("0-19", "20-39", "40-59", "60-79", "80+"),
+                                                                                    selected = c("0-19", "20-39", "40-59", "60-79", "80+")) # by default, all categories are selected
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_RPP_All == 0 && input.checksub_RPP_All.includes('3')", # if user chooses to filter based on AIS grade
+                                                                 checkboxGroupInput(inputId = "grade_RPP_All", # create new check box group
+                                                                                    label = "AIS grade:", # label of the box
+                                                                                    choices = list("AIS A", "AIS B", "AIS C", "AIS D"), # choices (match the levels in All dataset), missing AIS grades will automatically be removed
+                                                                                    selected = c("AIS A", "AIS B", "AIS C", "AIS D")) # by default, all grades are selected but missing grades
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_RPP_All == 0 && input.checksub_RPP_All.includes('4')", # if user chooses to filter based on neurological level of injury
+                                                                 checkboxGroupInput(inputId = "level_RPP_All", # create new check box group
+                                                                                    label = "Neurological level of injury:", # label of the box
+                                                                                    choices = list("cervical", "lumbar", 'sacral', "thoracic"), # choices (match the levels in All dataset)
+                                                                                    selected = c("cervical", "lumbar", 'sacral', "thoracic")) # by default, all categories are selected
+                                                ) # end conditionalPanel
+                                            ), # end box
+                                            
+                                            box(status = "primary", width = NULL, # create box 
+                                                radioButtons("checkbox_RPP_All",
+                                                             label = "How do you want to visualise the data?",
+                                                             choices = c("Default" = 1, 'Customize (display by subgroups)' = 0), 
+                                                             selected = 1), # checkbox to go to basic plot: no filters, all patients, x-axis=stages, y-axis=value of score
+                                                conditionalPanel(condition = "input.checkbox_RPP_All == 0", # if user decides to not display all data and apply filters, make a new panel appear
+                                                                 checkboxGroupInput(inputId = "checkGroup_RPP_All", # create new check box group
+                                                                                    label = "Visualisation criteria:", # label of the box
+                                                                                    choices = list("Sex" = '1', 
+                                                                                                   "Age at injury" = '2', 
+                                                                                                   "AIS grade" = '3', 
+                                                                                                   "Level of injury" = '4'), # choices are the different filters that can be applied
+                                                                                    selected = c('1','4')) # by default, sex and AIS grades are selected
+                                                ), # end conditionalPanel
+                                            ), # end box
+                                     ) # end column
+                                   ) #end fluidRow
+                  ),
+                  
+                  conditionalPanel(condition = "input.choose_data == 'All' && input.choose_cat_scores == 'neuro' && input.All_neuro == 'LPP'", # based on user inputs, display different plots
+                                   htmlOutput("title_LPP_All"), # make title based on user inputs (score and dataset)
+                                   fluidRow( # create a separation in the panel
+                                     column(width = 8, # create first column for boxplot
+                                            box(width = NULL, status = "primary", # create box to display plot
+                                                align="center", # center the plot
+                                                #textOutput('test_text')) # used for testing the user inputs formats to adapt the plotting function
+                                                plotOutput('plot_LPP_All', height = 660)) # call server plot function for the score and dataset chosen by the user #end box 
+                                     ), # end column
+                                     
+                                     column(width = 4, # create second column for second type of user inputs (filters)
+                                            
+                                            box(status = "primary", width = NULL, # create box 
+                                                radioButtons("subset_LPP_All",
+                                                             label = "Select subset of the cohort ?",
+                                                             choices = c("No" = 1, 'Yes' = 0), 
+                                                             selected = 1), # checkbox to go to basic plot: no filters, all patients, x-axis=stages, y-axis=value of score
+                                                
+                                                conditionalPanel(condition = "input.subset_LPP_All == 0", # if user decides to not display all data and apply filters, make a new panel appear
+                                                                 checkboxGroupInput(inputId = "checksub_LPP_All", # create new check box group
+                                                                                    label = "Subsetting criteria:", # label of the box
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "AIS grade" = '3', "Level of injury" = '4'),
+                                                                                    selected = NULL) # by default, sex and AIS grades are selected
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_LPP_All == 0 && input.checksub_LPP_All.includes('1')", # if user chooses to filter based on sex
+                                                                 checkboxGroupInput(inputId = "sex_LPP_All", # create new check box group
+                                                                                    label = "Sex:", # label of the box
+                                                                                    choices = list("Male", "Female"), # choices are male and female (match the levels in All dataset)
+                                                                                    selected = c("Male", "Female")) # by default, both male and female are selected
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_LPP_All == 0 && input.checksub_LPP_All.includes('2')", # if user chooses to filter based on age
+                                                                 checkboxGroupInput(inputId = "age_LPP_All", # create new check box group
+                                                                                    label = "Age at injury:", # label of the box
+                                                                                    choices = list("0-19", "20-39", "40-59", "60-79", "80+"),
+                                                                                    selected = c("0-19", "20-39", "40-59", "60-79", "80+")) # by default, all categories are selected
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_LPP_All == 0 && input.checksub_LPP_All.includes('3')", # if user chooses to filter based on AIS grade
+                                                                 checkboxGroupInput(inputId = "grade_LPP_All", # create new check box group
+                                                                                    label = "AIS grade:", # label of the box
+                                                                                    choices = list("AIS A", "AIS B", "AIS C", "AIS D"), # choices (match the levels in All dataset), missing AIS grades will automatically be removed
+                                                                                    selected = c("AIS A", "AIS B", "AIS C", "AIS D")) # by default, all grades are selected but missing grades
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_LPP_All == 0 && input.checksub_LPP_All.includes('4')", # if user chooses to filter based on neurological level of injury
+                                                                 checkboxGroupInput(inputId = "level_LPP_All", # create new check box group
+                                                                                    label = "Neurological level of injury:", # label of the box
+                                                                                    choices = list("cervical", "lumbar", 'sacral', "thoracic"), # choices (match the levels in All dataset)
+                                                                                    selected = c("cervical", "lumbar", 'sacral', "thoracic")) # by default, all categories are selected
+                                                ) # end conditionalPanel
+                                            ), # end box
+                                            
+                                            box(status = "primary", width = NULL, # create box 
+                                                radioButtons("checkbox_LPP_All",
+                                                             label = "How do you want to visualise the data?",
+                                                             choices = c("Default" = 1, 'Customize (display by subgroups)' = 0), 
+                                                             selected = 1), # checkbox to go to basic plot: no filters, all patients, x-axis=stages, y-axis=value of score
+                                                conditionalPanel(condition = "input.checkbox_LPP_All == 0", # if user decides to not display all data and apply filters, make a new panel appear
+                                                                 checkboxGroupInput(inputId = "checkGroup_LPP_All", # create new check box group
+                                                                                    label = "Visualisation criteria:", # label of the box
+                                                                                    choices = list("Sex" = '1', 
+                                                                                                   "Age at injury" = '2', 
+                                                                                                   "AIS grade" = '3', 
+                                                                                                   "Level of injury" = '4'), # choices are the different filters that can be applied
+                                                                                    selected = c('1','4')) # by default, sex and AIS grades are selected
+                                                ), # end conditionalPanel
+                                            ), # end box
+                                     ) # end column
+                                   ) #end fluidRow
+                  ),
+                  
+                  conditionalPanel(condition = "input.choose_data == 'All' && input.choose_cat_scores == 'neuro' && input.All_neuro == 'TPP'", # based on user inputs, display different plots
+                                   htmlOutput("title_TPP_All"), # make title based on user inputs (score and dataset)
+                                   fluidRow( # create a separation in the panel
+                                     column(width = 8, # create first column for boxplot
+                                            box(width = NULL, status = "primary", # create box to display plot
+                                                align="center", # center the plot
+                                                #textOutput('test_text')) # used for testing the user inputs formats to adapt the plotting function
+                                                plotOutput('plot_TPP_All', height = 660)) # call server plot function for the score and dataset chosen by the user #end box 
+                                     ), # end column
+                                     
+                                     column(width = 4, # create second column for second type of user inputs (filters)
+                                            
+                                            box(status = "primary", width = NULL, # create box 
+                                                radioButtons("subset_TPP_All",
+                                                             label = "Select subset of the cohort ?",
+                                                             choices = c("No" = 1, 'Yes' = 0), 
+                                                             selected = 1), # checkbox to go to basic plot: no filters, all patients, x-axis=stages, y-axis=value of score
+                                                
+                                                conditionalPanel(condition = "input.subset_TPP_All == 0", # if user decides to not display all data and apply filters, make a new panel appear
+                                                                 checkboxGroupInput(inputId = "checksub_TPP_All", # create new check box group
+                                                                                    label = "Subsetting criteria:", # label of the box
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "AIS grade" = '3', "Level of injury" = '4'),
+                                                                                    selected = NULL) # by default, sex and AIS grades are selected
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_TPP_All == 0 && input.checksub_TPP_All.includes('1')", # if user chooses to filter based on sex
+                                                                 checkboxGroupInput(inputId = "sex_TPP_All", # create new check box group
+                                                                                    label = "Sex:", # label of the box
+                                                                                    choices = list("Male", "Female"), # choices are male and female (match the levels in All dataset)
+                                                                                    selected = c("Male", "Female")) # by default, both male and female are selected
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_TPP_All == 0 && input.checksub_TPP_All.includes('2')", # if user chooses to filter based on age
+                                                                 checkboxGroupInput(inputId = "age_TPP_All", # create new check box group
+                                                                                    label = "Age at injury:", # label of the box
+                                                                                    choices = list("0-19", "20-39", "40-59", "60-79", "80+"),
+                                                                                    selected = c("0-19", "20-39", "40-59", "60-79", "80+")) # by default, all categories are selected
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_TPP_All == 0 && input.checksub_TPP_All.includes('3')", # if user chooses to filter based on AIS grade
+                                                                 checkboxGroupInput(inputId = "grade_TPP_All", # create new check box group
+                                                                                    label = "AIS grade:", # label of the box
+                                                                                    choices = list("AIS A", "AIS B", "AIS C", "AIS D"), # choices (match the levels in All dataset), missing AIS grades will automatically be removed
+                                                                                    selected = c("AIS A", "AIS B", "AIS C", "AIS D")) # by default, all grades are selected but missing grades
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_TPP_All == 0 && input.checksub_TPP_All.includes('4')", # if user chooses to filter based on neurological level of injury
+                                                                 checkboxGroupInput(inputId = "level_TPP_All", # create new check box group
+                                                                                    label = "Neurological level of injury:", # label of the box
+                                                                                    choices = list("cervical", "lumbar", 'sacral', "thoracic"), # choices (match the levels in All dataset)
+                                                                                    selected = c("cervical", "lumbar", 'sacral', "thoracic")) # by default, all categories are selected
+                                                ) # end conditionalPanel
+                                            ), # end box
+                                            
+                                            box(status = "primary", width = NULL, # create box 
+                                                radioButtons("checkbox_TPP_All",
+                                                             label = "How do you want to visualise the data?",
+                                                             choices = c("Default" = 1, 'Customize (display by subgroups)' = 0), 
+                                                             selected = 1), # checkbox to go to basic plot: no filters, all patients, x-axis=stages, y-axis=value of score
+                                                conditionalPanel(condition = "input.checkbox_TPP_All == 0", # if user decides to not display all data and apply filters, make a new panel appear
+                                                                 checkboxGroupInput(inputId = "checkGroup_TPP_All", # create new check box group
+                                                                                    label = "Visualisation criteria:", # label of the box
+                                                                                    choices = list("Sex" = '1', 
+                                                                                                   "Age at injury" = '2', 
+                                                                                                   "AIS grade" = '3', 
+                                                                                                   "Level of injury" = '4'), # choices are the different filters that can be applied
+                                                                                    selected = c('1','4')) # by default, sex and AIS grades are selected
+                                                ), # end conditionalPanel
+                                            ), # end box
+                                     ) # end column
+                                   ) #end fluidRow
+                  ),
+                  
+                  conditionalPanel(condition = "input.choose_data == 'All' && input.choose_cat_scores == 'neuro' && input.All_neuro == 'RLT'", # based on user inputs, display different plots
+                                   htmlOutput("title_RLT_All"), # make title based on user inputs (score and dataset)
+                                   fluidRow( # create a separation in the panel
+                                     column(width = 8, # create first column for boxplot
+                                            box(width = NULL, status = "primary", # create box to display plot
+                                                align="center", # center the plot
+                                                #textOutput('test_text')) # used for testing the user inputs formats to adapt the plotting function
+                                                plotOutput('plot_RLT_All', height = 660)) # call server plot function for the score and dataset chosen by the user #end box 
+                                     ), # end column
+                                     
+                                     column(width = 4, # create second column for second type of user inputs (filters)
+                                            
+                                            box(status = "primary", width = NULL, # create box 
+                                                radioButtons("subset_RLT_All",
+                                                             label = "Select subset of the cohort ?",
+                                                             choices = c("No" = 1, 'Yes' = 0), 
+                                                             selected = 1), # checkbox to go to basic plot: no filters, all patients, x-axis=stages, y-axis=value of score
+                                                
+                                                conditionalPanel(condition = "input.subset_RLT_All == 0", # if user decides to not display all data and apply filters, make a new panel appear
+                                                                 checkboxGroupInput(inputId = "checksub_RLT_All", # create new check box group
+                                                                                    label = "Subsetting criteria:", # label of the box
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "AIS grade" = '3', "Level of injury" = '4'),
+                                                                                    selected = NULL) # by default, sex and AIS grades are selected
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_RLT_All == 0 && input.checksub_RLT_All.includes('1')", # if user chooses to filter based on sex
+                                                                 checkboxGroupInput(inputId = "sex_RLT_All", # create new check box group
+                                                                                    label = "Sex:", # label of the box
+                                                                                    choices = list("Male", "Female"), # choices are male and female (match the levels in All dataset)
+                                                                                    selected = c("Male", "Female")) # by default, both male and female are selected
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_RLT_All == 0 && input.checksub_RLT_All.includes('2')", # if user chooses to filter based on age
+                                                                 checkboxGroupInput(inputId = "age_RLT_All", # create new check box group
+                                                                                    label = "Age at injury:", # label of the box
+                                                                                    choices = list("0-19", "20-39", "40-59", "60-79", "80+"),
+                                                                                    selected = c("0-19", "20-39", "40-59", "60-79", "80+")) # by default, all categories are selected
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_RLT_All == 0 && input.checksub_RLT_All.includes('3')", # if user chooses to filter based on AIS grade
+                                                                 checkboxGroupInput(inputId = "grade_RLT_All", # create new check box group
+                                                                                    label = "AIS grade:", # label of the box
+                                                                                    choices = list("AIS A", "AIS B", "AIS C", "AIS D"), # choices (match the levels in All dataset), missing AIS grades will automatically be removed
+                                                                                    selected = c("AIS A", "AIS B", "AIS C", "AIS D")) # by default, all grades are selected but missing grades
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_RLT_All == 0 && input.checksub_RLT_All.includes('4')", # if user chooses to filter based on neurological level of injury
+                                                                 checkboxGroupInput(inputId = "level_RLT_All", # create new check box group
+                                                                                    label = "Neurological level of injury:", # label of the box
+                                                                                    choices = list("cervical", "lumbar", 'sacral', "thoracic"), # choices (match the levels in All dataset)
+                                                                                    selected = c("cervical", "lumbar", 'sacral', "thoracic")) # by default, all categories are selected
+                                                ) # end conditionalPanel
+                                            ), # end box
+                                            
+                                            box(status = "primary", width = NULL, # create box 
+                                                radioButtons("checkbox_RLT_All",
+                                                             label = "How do you want to visualise the data?",
+                                                             choices = c("Default" = 1, 'Customize (display by subgroups)' = 0), 
+                                                             selected = 1), # checkbox to go to basic plot: no filters, all patients, x-axis=stages, y-axis=value of score
+                                                conditionalPanel(condition = "input.checkbox_RLT_All == 0", # if user decides to not display all data and apply filters, make a new panel appear
+                                                                 checkboxGroupInput(inputId = "checkGroup_RLT_All", # create new check box group
+                                                                                    label = "Visualisation criteria:", # label of the box
+                                                                                    choices = list("Sex" = '1', 
+                                                                                                   "Age at injury" = '2', 
+                                                                                                   "AIS grade" = '3', 
+                                                                                                   "Level of injury" = '4'), # choices are the different filters that can be applied
+                                                                                    selected = c('1','4')) # by default, sex and AIS grades are selected
+                                                ), # end conditionalPanel
+                                            ), # end box
+                                     ) # end column
+                                   ) #end fluidRow
+                  ),
+                  
+                  conditionalPanel(condition = "input.choose_data == 'All' && input.choose_cat_scores == 'neuro' && input.All_neuro == 'LLT'", # based on user inputs, display different plots
+                                   htmlOutput("title_LLT_All"), # make title based on user inputs (score and dataset)
+                                   fluidRow( # create a separation in the panel
+                                     column(width = 8, # create first column for boxplot
+                                            box(width = NULL, status = "primary", # create box to display plot
+                                                align="center", # center the plot
+                                                #textOutput('test_text')) # used for testing the user inputs formats to adapt the plotting function
+                                                plotOutput('plot_LLT_All', height = 660)) # call server plot function for the score and dataset chosen by the user #end box 
+                                     ), # end column
+                                     
+                                     column(width = 4, # create second column for second type of user inputs (filters)
+                                            
+                                            box(status = "primary", width = NULL, # create box 
+                                                radioButtons("subset_LLT_All",
+                                                             label = "Select subset of the cohort ?",
+                                                             choices = c("No" = 1, 'Yes' = 0), 
+                                                             selected = 1), # checkbox to go to basic plot: no filters, all patients, x-axis=stages, y-axis=value of score
+                                                
+                                                conditionalPanel(condition = "input.subset_LLT_All == 0", # if user decides to not display all data and apply filters, make a new panel appear
+                                                                 checkboxGroupInput(inputId = "checksub_LLT_All", # create new check box group
+                                                                                    label = "Subsetting criteria:", # label of the box
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "AIS grade" = '3', "Level of injury" = '4'),
+                                                                                    selected = NULL) # by default, sex and AIS grades are selected
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_LLT_All == 0 && input.checksub_LLT_All.includes('1')", # if user chooses to filter based on sex
+                                                                 checkboxGroupInput(inputId = "sex_LLT_All", # create new check box group
+                                                                                    label = "Sex:", # label of the box
+                                                                                    choices = list("Male", "Female"), # choices are male and female (match the levels in All dataset)
+                                                                                    selected = c("Male", "Female")) # by default, both male and female are selected
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_LLT_All == 0 && input.checksub_LLT_All.includes('2')", # if user chooses to filter based on age
+                                                                 checkboxGroupInput(inputId = "age_LLT_All", # create new check box group
+                                                                                    label = "Age at injury:", # label of the box
+                                                                                    choices = list("0-19", "20-39", "40-59", "60-79", "80+"),
+                                                                                    selected = c("0-19", "20-39", "40-59", "60-79", "80+")) # by default, all categories are selected
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_LLT_All == 0 && input.checksub_LLT_All.includes('3')", # if user chooses to filter based on AIS grade
+                                                                 checkboxGroupInput(inputId = "grade_LLT_All", # create new check box group
+                                                                                    label = "AIS grade:", # label of the box
+                                                                                    choices = list("AIS A", "AIS B", "AIS C", "AIS D"), # choices (match the levels in All dataset), missing AIS grades will automatically be removed
+                                                                                    selected = c("AIS A", "AIS B", "AIS C", "AIS D")) # by default, all grades are selected but missing grades
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_LLT_All == 0 && input.checksub_LLT_All.includes('4')", # if user chooses to filter based on neurological level of injury
+                                                                 checkboxGroupInput(inputId = "level_LLT_All", # create new check box group
+                                                                                    label = "Neurological level of injury:", # label of the box
+                                                                                    choices = list("cervical", "lumbar", 'sacral', "thoracic"), # choices (match the levels in All dataset)
+                                                                                    selected = c("cervical", "lumbar", 'sacral', "thoracic")) # by default, all categories are selected
+                                                ) # end conditionalPanel
+                                            ), # end box
+                                            
+                                            box(status = "primary", width = NULL, # create box 
+                                                radioButtons("checkbox_LLT_All",
+                                                             label = "How do you want to visualise the data?",
+                                                             choices = c("Default" = 1, 'Customize (display by subgroups)' = 0), 
+                                                             selected = 1), # checkbox to go to basic plot: no filters, all patients, x-axis=stages, y-axis=value of score
+                                                conditionalPanel(condition = "input.checkbox_LLT_All == 0", # if user decides to not display all data and apply filters, make a new panel appear
+                                                                 checkboxGroupInput(inputId = "checkGroup_LLT_All", # create new check box group
+                                                                                    label = "Visualisation criteria:", # label of the box
+                                                                                    choices = list("Sex" = '1', 
+                                                                                                   "Age at injury" = '2', 
+                                                                                                   "AIS grade" = '3', 
+                                                                                                   "Level of injury" = '4'), # choices are the different filters that can be applied
+                                                                                    selected = c('1','4')) # by default, sex and AIS grades are selected
+                                                ), # end conditionalPanel
+                                            ), # end box
+                                     ) # end column
+                                   ) #end fluidRow
+                  ),
+                  
+                  conditionalPanel(condition = "input.choose_data == 'All' && input.choose_cat_scores == 'neuro' && input.All_neuro == 'TLT'", # based on user inputs, display different plots
+                                   htmlOutput("title_TLT_All"), # make title based on user inputs (score and dataset)
+                                   fluidRow( # create a separation in the panel
+                                     column(width = 8, # create first column for boxplot
+                                            box(width = NULL, status = "primary", # create box to display plot
+                                                align="center", # center the plot
+                                                #textOutput('test_text')) # used for testing the user inputs formats to adapt the plotting function
+                                                plotOutput('plot_TLT_All', height = 660)) # call server plot function for the score and dataset chosen by the user #end box 
+                                     ), # end column
+                                     
+                                     column(width = 4, # create second column for second type of user inputs (filters)
+                                            
+                                            box(status = "primary", width = NULL, # create box 
+                                                radioButtons("subset_TLT_All",
+                                                             label = "Select subset of the cohort ?",
+                                                             choices = c("No" = 1, 'Yes' = 0), 
+                                                             selected = 1), # checkbox to go to basic plot: no filters, all patients, x-axis=stages, y-axis=value of score
+                                                
+                                                conditionalPanel(condition = "input.subset_TLT_All == 0", # if user decides to not display all data and apply filters, make a new panel appear
+                                                                 checkboxGroupInput(inputId = "checksub_TLT_All", # create new check box group
+                                                                                    label = "Subsetting criteria:", # label of the box
+                                                                                    choices = list("Sex" = '1', "Age at injury" = '2', "AIS grade" = '3', "Level of injury" = '4'),
+                                                                                    selected = NULL) # by default, sex and AIS grades are selected
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_TLT_All == 0 && input.checksub_TLT_All.includes('1')", # if user chooses to filter based on sex
+                                                                 checkboxGroupInput(inputId = "sex_TLT_All", # create new check box group
+                                                                                    label = "Sex:", # label of the box
+                                                                                    choices = list("Male", "Female"), # choices are male and female (match the levels in All dataset)
+                                                                                    selected = c("Male", "Female")) # by default, both male and female are selected
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_TLT_All == 0 && input.checksub_TLT_All.includes('2')", # if user chooses to filter based on age
+                                                                 checkboxGroupInput(inputId = "age_TLT_All", # create new check box group
+                                                                                    label = "Age at injury:", # label of the box
+                                                                                    choices = list("0-19", "20-39", "40-59", "60-79", "80+"),
+                                                                                    selected = c("0-19", "20-39", "40-59", "60-79", "80+")) # by default, all categories are selected
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_TLT_All == 0 && input.checksub_TLT_All.includes('3')", # if user chooses to filter based on AIS grade
+                                                                 checkboxGroupInput(inputId = "grade_TLT_All", # create new check box group
+                                                                                    label = "AIS grade:", # label of the box
+                                                                                    choices = list("AIS A", "AIS B", "AIS C", "AIS D"), # choices (match the levels in All dataset), missing AIS grades will automatically be removed
+                                                                                    selected = c("AIS A", "AIS B", "AIS C", "AIS D")) # by default, all grades are selected but missing grades
+                                                ), # end conditionalPanel
+                                                
+                                                conditionalPanel(condition = "input.subset_TLT_All == 0 && input.checksub_TLT_All.includes('4')", # if user chooses to filter based on neurological level of injury
+                                                                 checkboxGroupInput(inputId = "level_TLT_All", # create new check box group
+                                                                                    label = "Neurological level of injury:", # label of the box
+                                                                                    choices = list("cervical", "lumbar", 'sacral', "thoracic"), # choices (match the levels in All dataset)
+                                                                                    selected = c("cervical", "lumbar", 'sacral', "thoracic")) # by default, all categories are selected
+                                                ) # end conditionalPanel
+                                            ), # end box
+                                            
+                                            box(status = "primary", width = NULL, # create box 
+                                                radioButtons("checkbox_TLT_All",
+                                                             label = "How do you want to visualise the data?",
+                                                             choices = c("Default" = 1, 'Customize (display by subgroups)' = 0), 
+                                                             selected = 1), # checkbox to go to basic plot: no filters, all patients, x-axis=stages, y-axis=value of score
+                                                conditionalPanel(condition = "input.checkbox_TLT_All == 0", # if user decides to not display all data and apply filters, make a new panel appear
+                                                                 checkboxGroupInput(inputId = "checkGroup_TLT_All", # create new check box group
+                                                                                    label = "Visualisation criteria:", # label of the box
+                                                                                    choices = list("Sex" = '1', 
+                                                                                                   "Age at injury" = '2', 
+                                                                                                   "AIS grade" = '3', 
+                                                                                                   "Level of injury" = '4'), # choices are the different filters that can be applied
                                                                                     selected = c('1','4')) # by default, sex and AIS grades are selected
                                                 ), # end conditionalPanel
                                             ), # end box
@@ -6284,7 +7032,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                    ) #end fluidRow
                   ),
                   
-                  conditionalPanel(condition = "input.choose_data == 'EMSCI' && input.choose_cat_scores == 'epi' && input.EMSCI_epi == 'NLI'", # based on user inputs, display different plots
+                  conditionalPanel(condition = "input.choose_data == 'EMSCI' && input.choose_cat_scores == 'epi' && input.EMSCI_epi == 'Level of injury'", # based on user inputs, display different plots
                                    htmlOutput("title_NLI_EMSCI"),
                                    fluidRow( # create a separation in the panel
                                      column(width = 8, # create first column for boxplot
@@ -6554,7 +7302,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                                    ) #end fluidRow
                   ),
                   
-                  conditionalPanel(condition = "input.choose_data == 'Sygen' && input.choose_cat_scores == 'epi' && input.Sygen_epi == 'NLI'", # based on user inputs, display different plots
+                  conditionalPanel(condition = "input.choose_data == 'Sygen' && input.choose_cat_scores == 'epi' && input.Sygen_epi == 'Level of injury'", # based on user inputs, display different plots
                                    htmlOutput("title_NLI_Sygen"),
                                    fluidRow( # create a separation in the panel
                                      column(width = 8, # create first column for boxplot
@@ -6805,7 +7553,7 @@ ui <- dashboardPage(skin = "blue", # make the frame blue
                   #                  ) #end fluidRow
                   # ),
                   # 
-                  # conditionalPanel(condition = "input.choose_data == 'SCI rehab' && input.choose_cat_scores == 'epi' && input.SCI_rehab_epi == 'NLI'", # based on user inputs, display different plots
+                  # conditionalPanel(condition = "input.choose_data == 'SCI rehab' && input.choose_cat_scores == 'epi' && input.SCI_rehab_epi == 'Level of injury'", # based on user inputs, display different plots
                   #                  htmlOutput("title_NLI_SCI_rehab"),
                   #                  fluidRow( # create a separation in the panel
                   #                    column(width = 8, # create first column for boxplot
@@ -10321,7 +11069,7 @@ server <- function(input, output) {
       input_ais <- unique(input$grade_RMS_All)
       input_nli <- unique(input$level_RMS_All)
       
-      data_modified <- data_All
+      data_modified <- data_emsci_sygen
       
       if (!('Unknown' %in% input_sex)){data_modified <- data_modified[data_modified$Sex %in% input_sex, ]}
       if (!('Unknown' %in% input_age)){data_modified <- data_modified[data_modified$Age %in% input_age, ]}
@@ -10331,18 +11079,19 @@ server <- function(input, output) {
       data_All_copy <- data_modified
       
     } else {
-      data_All_copy <- data_All
+      data_All_copy <- data_emsci_sygen
     }
     
     if (input$checkbox_RMS_All == 1){ # if user chooses to display all data
       plot <- plot_base_All(data_All_copy, score = input$All_neuro) # display basic plot with all patients, and user selected stages
     }
     else if (input$checkbox_RMS_All == 0){ # if user chooses filters
-      if (!(length(input$checkbox_RMS_All) == 2)){ # if user chooses something else than 2 filters
+      #print(length(input$checkGroup_RMS_All))
+      if (!(length(input$checkGroup_RMS_All) == 2)){ # if user chooses something else than 2 filters
         plot <- plot_error() # give a plot saying to choose 2 filters
       }
-      else if (length(input$checkbox_RMS_All) == 2){ # if user chooses exactly 2 filters
-        filters <- as.numeric(as.vector(unique(input$checkbox_RMS_All))) # store filters the user has selected
+      else if (length(input$checkGroup_RMS_All) == 2){ # if user chooses exactly 2 filters
+        filters <- as.numeric(as.vector(unique(input$checkGroup_RMS_All))) # store filters the user has selected
         list_all = list(c("Female", "Male"), # store all the different options for the different filters
                         c("12-19", "20-39", "40-59", "60-79", "80+"),
                         c("AIS A", "AIS B", "AIS C", "AIS D"),
@@ -10371,7 +11120,7 @@ server <- function(input, output) {
       input_ais <- unique(input$grade_LMS_All)
       input_nli <- unique(input$level_LMS_All)
       
-      data_modified <- data_All
+      data_modified <- data_emsci_sygen
       
       if (!('Unknown' %in% input_sex)){data_modified <- data_modified[data_modified$Sex %in% input_sex, ]}
       if (!('Unknown' %in% input_age)){data_modified <- data_modified[data_modified$Age %in% input_age, ]}
@@ -10381,18 +11130,18 @@ server <- function(input, output) {
       data_All_copy <- data_modified
       
     } else {
-      data_All_copy <- data_All
+      data_All_copy <- data_emsci_sygen
     }
     
     if (input$checkbox_LMS_All == 1){ # if user chooses to display all data
       plot <- plot_base_All(data_All_copy, score = input$All_neuro) # display basic plot with all patients, and user selected stages
     }
     else if (input$checkbox_LMS_All == 0){ # if user chooses filters
-      if (!(length(input$checkbox_LMS_All) == 2)){ # if user chooses something else than 2 filters
+      if (!(length(input$checkGroup_LMS_All) == 2)){ # if user chooses something else than 2 filters
         plot <- plot_error() # give a plot saying to choose 2 filters
       }
-      else if (length(input$checkbox_LMS_All) == 2){ # if user chooses exactly 2 filters
-        filters <- as.numeric(as.vector(unique(input$checkbox_LMS_All))) # store filters the user has selected
+      else if (length(input$checkGroup_LMS_All) == 2){ # if user chooses exactly 2 filters
+        filters <- as.numeric(as.vector(unique(input$checkGroup_LMS_All))) # store filters the user has selected
         list_all = list(c("Female", "Male"), # store all the different options for the different filters
                         c("12-19", "20-39", "40-59", "60-79", "80+"),
                         c("AIS A", "AIS B", "AIS C", "AIS D"),
@@ -10421,7 +11170,7 @@ server <- function(input, output) {
       input_ais <- unique(input$grade_TMS_All)
       input_nli <- unique(input$level_TMS_All)
       
-      data_modified <- data_All
+      data_modified <- data_emsci_sygen
       
       if (!('Unknown' %in% input_sex)){data_modified <- data_modified[data_modified$Sex %in% input_sex, ]}
       if (!('Unknown' %in% input_age)){data_modified <- data_modified[data_modified$Age %in% input_age, ]}
@@ -10431,18 +11180,418 @@ server <- function(input, output) {
       data_All_copy <- data_modified
       
     } else {
-      data_All_copy <- data_All
+      data_All_copy <- data_emsci_sygen
     }
     
     if (input$checkbox_TMS_All == 1){ # if user chooses to display all data
       plot <- plot_base_All(data_All_copy, score = input$All_neuro) # display basic plot with all patients, and user selected stages
     }
     else if (input$checkbox_TMS_All == 0){ # if user chooses filters
-      if (!(length(input$checkbox_TMS_All) == 2)){ # if user chooses something else than 2 filters
+      if (!(length(input$checkGroup_TMS_All) == 2)){ # if user chooses something else than 2 filters
         plot <- plot_error() # give a plot saying to choose 2 filters
       }
-      else if (length(input$checkbox_TMS_All) == 2){ # if user chooses exactly 2 filters
-        filters <- as.numeric(as.vector(unique(input$checkbox_TMS_All))) # store filters the user has selected
+      else if (length(input$checkGroup_TMS_All) == 2){ # if user chooses exactly 2 filters
+        filters <- as.numeric(as.vector(unique(input$checkGroup_TMS_All))) # store filters the user has selected
+        list_all = list(c("Female", "Male"), # store all the different options for the different filters
+                        c("12-19", "20-39", "40-59", "60-79", "80+"),
+                        c("AIS A", "AIS B", "AIS C", "AIS D"),
+                        c("cervical", "lumbar", "sacral", "thoracic"))
+        
+        filter1_all <- as.vector(list_all[filters[1]][[1]]) # select all options for the first filter chosen by user
+        filter2_all <- as.vector(list_all[filters[2]][[1]]) # select all options for the second filter chosen by user
+        
+        list_names = c("Sex", "Age", "AIS", "NLI") # names of columns corresponding to the available filters        
+        plot <- plot_filters_All(data_All_copy, score = input$All_neuro, # call function for All plots in helper_functions.R 
+                                 list_names[filters[1]], 
+                                 list_names[filters[2]],
+                                 filter1_all, 
+                                 filter2_all)
+      }
+    }
+    plot}) # end of the output plot function
+  
+  output$title_UEMS_All <- renderText({paste("<h2><b>", "Comparison of UEMS distribution across datasets", "</b>")})
+  
+  output$plot_UEMS_All <- renderPlot({ # create output function for plot of interest
+    
+    if (input$subset_UEMS_All == 0){
+      input_sex <- unique(input$sex_UEMS_All)
+      input_age <- unique(input$age_UEMS_All)
+      input_ais <- unique(input$grade_UEMS_All)
+      input_nli <- unique(input$level_UEMS_All)
+      
+      data_modified <- data_emsci_sygen
+      
+      if (!('Unknown' %in% input_sex)){data_modified <- data_modified[data_modified$Sex %in% input_sex, ]}
+      if (!('Unknown' %in% input_age)){data_modified <- data_modified[data_modified$Age %in% input_age, ]}
+      if (!('Unknown' %in% input_ais)){data_modified <- data_modified[data_modified$AIS %in% input_ais, ]}
+      if (!('Unknown' %in% input_nli)){data_modified <- data_modified[data_modified$NLI %in% input_nli, ]}
+      
+      data_All_copy <- data_modified
+      
+    } else {
+      data_All_copy <- data_emsci_sygen
+    }
+    
+    if (input$checkbox_UEMS_All == 1){ # if user chooses to display all data
+      plot <- plot_base_All(data_All_copy, score = input$All_neuro) # display basic plot with all patients, and user selected stages
+    }
+    else if (input$checkbox_UEMS_All == 0){ # if user chooses filters
+      if (!(length(input$checkGroup_UEMS_All) == 2)){ # if user chooses something else than 2 filters
+        plot <- plot_error() # give a plot saying to choose 2 filters
+      }
+      else if (length(input$checkGroup_UEMS_All) == 2){ # if user chooses exactly 2 filters
+        filters <- as.numeric(as.vector(unique(input$checkGroup_UEMS_All))) # store filters the user has selected
+        list_all = list(c("Female", "Male"), # store all the different options for the different filters
+                        c("12-19", "20-39", "40-59", "60-79", "80+"),
+                        c("AIS A", "AIS B", "AIS C", "AIS D"),
+                        c("cervical", "lumbar", "sacral", "thoracic"))
+        
+        filter1_all <- as.vector(list_all[filters[1]][[1]]) # select all options for the first filter chosen by user
+        filter2_all <- as.vector(list_all[filters[2]][[1]]) # select all options for the second filter chosen by user
+        
+        list_names = c("Sex", "Age", "AIS", "NLI") # names of columns corresponding to the available filters        
+        plot <- plot_filters_All(data_All_copy, score = input$All_neuro, # call function for All plots in helper_functions.R 
+                                 list_names[filters[1]], 
+                                 list_names[filters[2]],
+                                 filter1_all, 
+                                 filter2_all)
+      }
+    }
+    plot}) # end of the output plot function
+  
+  output$title_LEMS_All <- renderText({paste("<h2><b>", "Comparison of LEMS distribution across datasets", "</b>")})
+  
+  output$plot_LEMS_All <- renderPlot({ # create output function for plot of interest
+    
+    if (input$subset_LEMS_All == 0){
+      input_sex <- unique(input$sex_LEMS_All)
+      input_age <- unique(input$age_LEMS_All)
+      input_ais <- unique(input$grade_LEMS_All)
+      input_nli <- unique(input$level_LEMS_All)
+      
+      data_modified <- data_emsci_sygen
+      
+      if (!('Unknown' %in% input_sex)){data_modified <- data_modified[data_modified$Sex %in% input_sex, ]}
+      if (!('Unknown' %in% input_age)){data_modified <- data_modified[data_modified$Age %in% input_age, ]}
+      if (!('Unknown' %in% input_ais)){data_modified <- data_modified[data_modified$AIS %in% input_ais, ]}
+      if (!('Unknown' %in% input_nli)){data_modified <- data_modified[data_modified$NLI %in% input_nli, ]}
+      
+      data_All_copy <- data_modified
+      
+    } else {
+      data_All_copy <- data_emsci_sygen
+    }
+    
+    if (input$checkbox_LEMS_All == 1){ # if user chooses to display all data
+      plot <- plot_base_All(data_All_copy, score = input$All_neuro) # display basic plot with all patients, and user selected stages
+    }
+    else if (input$checkbox_LEMS_All == 0){ # if user chooses filters
+      if (!(length(input$checkGroup_LEMS_All) == 2)){ # if user chooses something else than 2 filters
+        plot <- plot_error() # give a plot saying to choose 2 filters
+      }
+      else if (length(input$checkGroup_LEMS_All) == 2){ # if user chooses exactly 2 filters
+        filters <- as.numeric(as.vector(unique(input$checkGroup_LEMS_All))) # store filters the user has selected
+        list_all = list(c("Female", "Male"), # store all the different options for the different filters
+                        c("12-19", "20-39", "40-59", "60-79", "80+"),
+                        c("AIS A", "AIS B", "AIS C", "AIS D"),
+                        c("cervical", "lumbar", "sacral", "thoracic"))
+        
+        filter1_all <- as.vector(list_all[filters[1]][[1]]) # select all options for the first filter chosen by user
+        filter2_all <- as.vector(list_all[filters[2]][[1]]) # select all options for the second filter chosen by user
+        
+        list_names = c("Sex", "Age", "AIS", "NLI") # names of columns corresponding to the available filters        
+        plot <- plot_filters_All(data_All_copy, score = input$All_neuro, # call function for All plots in helper_functions.R 
+                                 list_names[filters[1]], 
+                                 list_names[filters[2]],
+                                 filter1_all, 
+                                 filter2_all)
+      }
+    }
+    plot}) # end of the output plot function
+  
+  output$title_RPP_All <- renderText({paste("<h2><b>", "Comparison of RPP distribution across datasets", "</b>")})
+  
+  output$plot_RPP_All <- renderPlot({ # create output function for plot of interest
+    
+    if (input$subset_RPP_All == 0){
+      input_sex <- unique(input$sex_RPP_All)
+      input_age <- unique(input$age_RPP_All)
+      input_ais <- unique(input$grade_RPP_All)
+      input_nli <- unique(input$level_RPP_All)
+      
+      data_modified <- data_emsci_sygen
+      
+      if (!('Unknown' %in% input_sex)){data_modified <- data_modified[data_modified$Sex %in% input_sex, ]}
+      if (!('Unknown' %in% input_age)){data_modified <- data_modified[data_modified$Age %in% input_age, ]}
+      if (!('Unknown' %in% input_ais)){data_modified <- data_modified[data_modified$AIS %in% input_ais, ]}
+      if (!('Unknown' %in% input_nli)){data_modified <- data_modified[data_modified$NLI %in% input_nli, ]}
+      
+      data_All_copy <- data_modified
+      
+    } else {
+      data_All_copy <- data_emsci_sygen
+    }
+    
+    if (input$checkbox_RPP_All == 1){ # if user chooses to display all data
+      plot <- plot_base_All(data_All_copy, score = input$All_neuro) # display basic plot with all patients, and user selected stages
+    }
+    else if (input$checkbox_RPP_All == 0){ # if user chooses filters
+      if (!(length(input$checkGroup_RPP_All) == 2)){ # if user chooses something else than 2 filters
+        plot <- plot_error() # give a plot saying to choose 2 filters
+      }
+      else if (length(input$checkGroup_RPP_All) == 2){ # if user chooses exactly 2 filters
+        filters <- as.numeric(as.vector(unique(input$checkGroup_RPP_All))) # store filters the user has selected
+        list_all = list(c("Female", "Male"), # store all the different options for the different filters
+                        c("12-19", "20-39", "40-59", "60-79", "80+"),
+                        c("AIS A", "AIS B", "AIS C", "AIS D"),
+                        c("cervical", "lumbar", "sacral", "thoracic"))
+        
+        filter1_all <- as.vector(list_all[filters[1]][[1]]) # select all options for the first filter chosen by user
+        filter2_all <- as.vector(list_all[filters[2]][[1]]) # select all options for the second filter chosen by user
+        
+        list_names = c("Sex", "Age", "AIS", "NLI") # names of columns corresponding to the available filters        
+        plot <- plot_filters_All(data_All_copy, score = input$All_neuro, # call function for All plots in helper_functions.R 
+                                 list_names[filters[1]], 
+                                 list_names[filters[2]],
+                                 filter1_all, 
+                                 filter2_all)
+      }
+    }
+    plot}) # end of the output plot function
+  
+  output$title_LPP_All <- renderText({paste("<h2><b>", "Comparison of LPP distribution across datasets", "</b>")})
+  
+  output$plot_LPP_All <- renderPlot({ # create output function for plot of interest
+    
+    if (input$subset_LPP_All == 0){
+      input_sex <- unique(input$sex_LPP_All)
+      input_age <- unique(input$age_LPP_All)
+      input_ais <- unique(input$grade_LPP_All)
+      input_nli <- unique(input$level_LPP_All)
+      
+      data_modified <- data_emsci_sygen
+      
+      if (!('Unknown' %in% input_sex)){data_modified <- data_modified[data_modified$Sex %in% input_sex, ]}
+      if (!('Unknown' %in% input_age)){data_modified <- data_modified[data_modified$Age %in% input_age, ]}
+      if (!('Unknown' %in% input_ais)){data_modified <- data_modified[data_modified$AIS %in% input_ais, ]}
+      if (!('Unknown' %in% input_nli)){data_modified <- data_modified[data_modified$NLI %in% input_nli, ]}
+      
+      data_All_copy <- data_modified
+      
+    } else {
+      data_All_copy <- data_emsci_sygen
+    }
+    
+    if (input$checkbox_LPP_All == 1){ # if user chooses to display all data
+      plot <- plot_base_All(data_All_copy, score = input$All_neuro) # display basic plot with all patients, and user selected stages
+    }
+    else if (input$checkbox_LPP_All == 0){ # if user chooses filters
+      if (!(length(input$checkGroup_LPP_All) == 2)){ # if user chooses something else than 2 filters
+        plot <- plot_error() # give a plot saying to choose 2 filters
+      }
+      else if (length(input$checkGroup_LPP_All) == 2){ # if user chooses exactly 2 filters
+        filters <- as.numeric(as.vector(unique(input$checkGroup_LPP_All))) # store filters the user has selected
+        list_all = list(c("Female", "Male"), # store all the different options for the different filters
+                        c("12-19", "20-39", "40-59", "60-79", "80+"),
+                        c("AIS A", "AIS B", "AIS C", "AIS D"),
+                        c("cervical", "lumbar", "sacral", "thoracic"))
+        
+        filter1_all <- as.vector(list_all[filters[1]][[1]]) # select all options for the first filter chosen by user
+        filter2_all <- as.vector(list_all[filters[2]][[1]]) # select all options for the second filter chosen by user
+        
+        list_names = c("Sex", "Age", "AIS", "NLI") # names of columns corresponding to the available filters        
+        plot <- plot_filters_All(data_All_copy, score = input$All_neuro, # call function for All plots in helper_functions.R 
+                                 list_names[filters[1]], 
+                                 list_names[filters[2]],
+                                 filter1_all, 
+                                 filter2_all)
+      }
+    }
+    plot}) # end of the output plot function
+  
+  output$title_TPP_All <- renderText({paste("<h2><b>", "Comparison of TPP distribution across datasets", "</b>")})
+  
+  output$plot_TPP_All <- renderPlot({ # create output function for plot of interest
+    
+    if (input$subset_TPP_All == 0){
+      input_sex <- unique(input$sex_TPP_All)
+      input_age <- unique(input$age_TPP_All)
+      input_ais <- unique(input$grade_TPP_All)
+      input_nli <- unique(input$level_TPP_All)
+      
+      data_modified <- data_emsci_sygen
+      
+      if (!('Unknown' %in% input_sex)){data_modified <- data_modified[data_modified$Sex %in% input_sex, ]}
+      if (!('Unknown' %in% input_age)){data_modified <- data_modified[data_modified$Age %in% input_age, ]}
+      if (!('Unknown' %in% input_ais)){data_modified <- data_modified[data_modified$AIS %in% input_ais, ]}
+      if (!('Unknown' %in% input_nli)){data_modified <- data_modified[data_modified$NLI %in% input_nli, ]}
+      
+      data_All_copy <- data_modified
+      
+    } else {
+      data_All_copy <- data_emsci_sygen
+    }
+    
+    if (input$checkbox_TPP_All == 1){ # if user chooses to display all data
+      plot <- plot_base_All(data_All_copy, score = input$All_neuro) # display basic plot with all patients, and user selected stages
+    }
+    else if (input$checkbox_TPP_All == 0){ # if user chooses filters
+      if (!(length(input$checkGroup_TPP_All) == 2)){ # if user chooses something else than 2 filters
+        plot <- plot_error() # give a plot saying to choose 2 filters
+      }
+      else if (length(input$checkGroup_TPP_All) == 2){ # if user chooses exactly 2 filters
+        filters <- as.numeric(as.vector(unique(input$checkGroup_TPP_All))) # store filters the user has selected
+        list_all = list(c("Female", "Male"), # store all the different options for the different filters
+                        c("12-19", "20-39", "40-59", "60-79", "80+"),
+                        c("AIS A", "AIS B", "AIS C", "AIS D"),
+                        c("cervical", "lumbar", "sacral", "thoracic"))
+        
+        filter1_all <- as.vector(list_all[filters[1]][[1]]) # select all options for the first filter chosen by user
+        filter2_all <- as.vector(list_all[filters[2]][[1]]) # select all options for the second filter chosen by user
+        
+        list_names = c("Sex", "Age", "AIS", "NLI") # names of columns corresponding to the available filters        
+        plot <- plot_filters_All(data_All_copy, score = input$All_neuro, # call function for All plots in helper_functions.R 
+                                 list_names[filters[1]], 
+                                 list_names[filters[2]],
+                                 filter1_all, 
+                                 filter2_all)
+      }
+    }
+    plot}) # end of the output plot function
+  
+  output$title_RLT_All <- renderText({paste("<h2><b>", "Comparison of RLT distribution across datasets", "</b>")})
+  
+  output$plot_RLT_All <- renderPlot({ # create output function for plot of interest
+    
+    if (input$subset_RLT_All == 0){
+      input_sex <- unique(input$sex_RLT_All)
+      input_age <- unique(input$age_RLT_All)
+      input_ais <- unique(input$grade_RLT_All)
+      input_nli <- unique(input$level_RLT_All)
+      
+      data_modified <- data_emsci_sygen
+      
+      if (!('Unknown' %in% input_sex)){data_modified <- data_modified[data_modified$Sex %in% input_sex, ]}
+      if (!('Unknown' %in% input_age)){data_modified <- data_modified[data_modified$Age %in% input_age, ]}
+      if (!('Unknown' %in% input_ais)){data_modified <- data_modified[data_modified$AIS %in% input_ais, ]}
+      if (!('Unknown' %in% input_nli)){data_modified <- data_modified[data_modified$NLI %in% input_nli, ]}
+      
+      data_All_copy <- data_modified
+      
+    } else {
+      data_All_copy <- data_emsci_sygen
+    }
+    
+    if (input$checkbox_RLT_All == 1){ # if user chooses to display all data
+      plot <- plot_base_All(data_All_copy, score = input$All_neuro) # display basic plot with all patients, and user selected stages
+    }
+    else if (input$checkbox_RLT_All == 0){ # if user chooses filters
+      if (!(length(input$checkGroup_RLT_All) == 2)){ # if user chooses something else than 2 filters
+        plot <- plot_error() # give a plot saying to choose 2 filters
+      }
+      else if (length(input$checkGroup_RLT_All) == 2){ # if user chooses exactly 2 filters
+        filters <- as.numeric(as.vector(unique(input$checkGroup_RLT_All))) # store filters the user has selected
+        list_all = list(c("Female", "Male"), # store all the different options for the different filters
+                        c("12-19", "20-39", "40-59", "60-79", "80+"),
+                        c("AIS A", "AIS B", "AIS C", "AIS D"),
+                        c("cervical", "lumbar", "sacral", "thoracic"))
+        
+        filter1_all <- as.vector(list_all[filters[1]][[1]]) # select all options for the first filter chosen by user
+        filter2_all <- as.vector(list_all[filters[2]][[1]]) # select all options for the second filter chosen by user
+        
+        list_names = c("Sex", "Age", "AIS", "NLI") # names of columns corresponding to the available filters        
+        plot <- plot_filters_All(data_All_copy, score = input$All_neuro, # call function for All plots in helper_functions.R 
+                                 list_names[filters[1]], 
+                                 list_names[filters[2]],
+                                 filter1_all, 
+                                 filter2_all)
+      }
+    }
+    plot}) # end of the output plot function
+  
+  output$title_LLT_All <- renderText({paste("<h2><b>", "Comparison of LLT distribution across datasets", "</b>")})
+  
+  output$plot_LLT_All <- renderPlot({ # create output function for plot of interest
+    
+    if (input$subset_LLT_All == 0){
+      input_sex <- unique(input$sex_LLT_All)
+      input_age <- unique(input$age_LLT_All)
+      input_ais <- unique(input$grade_LLT_All)
+      input_nli <- unique(input$level_LLT_All)
+      
+      data_modified <- data_emsci_sygen
+      
+      if (!('Unknown' %in% input_sex)){data_modified <- data_modified[data_modified$Sex %in% input_sex, ]}
+      if (!('Unknown' %in% input_age)){data_modified <- data_modified[data_modified$Age %in% input_age, ]}
+      if (!('Unknown' %in% input_ais)){data_modified <- data_modified[data_modified$AIS %in% input_ais, ]}
+      if (!('Unknown' %in% input_nli)){data_modified <- data_modified[data_modified$NLI %in% input_nli, ]}
+      
+      data_All_copy <- data_modified
+      
+    } else {
+      data_All_copy <- data_emsci_sygen
+    }
+    
+    if (input$checkbox_LLT_All == 1){ # if user chooses to display all data
+      plot <- plot_base_All(data_All_copy, score = input$All_neuro) # display basic plot with all patients, and user selected stages
+    }
+    else if (input$checkbox_LLT_All == 0){ # if user chooses filters
+      if (!(length(input$checkGroup_LLT_All) == 2)){ # if user chooses something else than 2 filters
+        plot <- plot_error() # give a plot saying to choose 2 filters
+      }
+      else if (length(input$checkGroup_LLT_All) == 2){ # if user chooses exactly 2 filters
+        filters <- as.numeric(as.vector(unique(input$checkGroup_LLT_All))) # store filters the user has selected
+        list_all = list(c("Female", "Male"), # store all the different options for the different filters
+                        c("12-19", "20-39", "40-59", "60-79", "80+"),
+                        c("AIS A", "AIS B", "AIS C", "AIS D"),
+                        c("cervical", "lumbar", "sacral", "thoracic"))
+        
+        filter1_all <- as.vector(list_all[filters[1]][[1]]) # select all options for the first filter chosen by user
+        filter2_all <- as.vector(list_all[filters[2]][[1]]) # select all options for the second filter chosen by user
+        
+        list_names = c("Sex", "Age", "AIS", "NLI") # names of columns corresponding to the available filters        
+        plot <- plot_filters_All(data_All_copy, score = input$All_neuro, # call function for All plots in helper_functions.R 
+                                 list_names[filters[1]], 
+                                 list_names[filters[2]],
+                                 filter1_all, 
+                                 filter2_all)
+      }
+    }
+    plot}) # end of the output plot function
+  
+  output$title_TLT_All <- renderText({paste("<h2><b>", "Comparison of TLT distribution across datasets", "</b>")})
+  
+  output$plot_TLT_All <- renderPlot({ # create output function for plot of interest
+    
+    if (input$subset_TLT_All == 0){
+      input_sex <- unique(input$sex_TLT_All)
+      input_age <- unique(input$age_TLT_All)
+      input_ais <- unique(input$grade_TLT_All)
+      input_nli <- unique(input$level_TLT_All)
+      
+      data_modified <- data_emsci_sygen
+      
+      if (!('Unknown' %in% input_sex)){data_modified <- data_modified[data_modified$Sex %in% input_sex, ]}
+      if (!('Unknown' %in% input_age)){data_modified <- data_modified[data_modified$Age %in% input_age, ]}
+      if (!('Unknown' %in% input_ais)){data_modified <- data_modified[data_modified$AIS %in% input_ais, ]}
+      if (!('Unknown' %in% input_nli)){data_modified <- data_modified[data_modified$NLI %in% input_nli, ]}
+      
+      data_All_copy <- data_modified
+      
+    } else {
+      data_All_copy <- data_emsci_sygen
+    }
+    
+    if (input$checkbox_TLT_All == 1){ # if user chooses to display all data
+      plot <- plot_base_All(data_All_copy, score = input$All_neuro) # display basic plot with all patients, and user selected stages
+    }
+    else if (input$checkbox_TLT_All == 0){ # if user chooses filters
+      if (!(length(input$checkGroup_TLT_All) == 2)){ # if user chooses something else than 2 filters
+        plot <- plot_error() # give a plot saying to choose 2 filters
+      }
+      else if (length(input$checkGroup_TLT_All) == 2){ # if user chooses exactly 2 filters
+        filters <- as.numeric(as.vector(unique(input$checkGroup_TLT_All))) # store filters the user has selected
         list_all = list(c("Female", "Male"), # store all the different options for the different filters
                         c("12-19", "20-39", "40-59", "60-79", "80+"),
                         c("AIS A", "AIS B", "AIS C", "AIS D"),
@@ -11237,23 +12386,27 @@ server <- function(input, output) {
     plot})
   
   output$video <- renderUI({
-    tags$video(src = "video_version2.mov", type = "video/mov", autoplay = NA, controls = NA, height = 500, width = 1000)
+    tags$video(src = "video_version3.mp4", type = "video/mp4", autoplay = NA, controls = NA, height = 350, width = 750)
   })
   
-  observe({
-    showNotification('Disclaimer: 
-    We cannot be held responsible for conclusions you might draw from the website. 
-    It is intended for visualisation only.', type='error')
-  })
+  # observe({
+  #   showNotification('Disclaimer: 
+  #   We cannot be held responsible for conclusions you might draw from the website. 
+  #   It is intended for data visualisation only.', type='error')
+  # })
   
   observeEvent(input$preview, {
     # Show a modal when the button is pressed
-    shinyalert("This is a disclaimer.", type = "error")
+    shinyalert("Disclaimer: 
+    We cannot be held responsible for conclusions you might draw from the website. 
+    It is intended for data visualisation only.", type = "error")
   })
   
   observeEvent(input$preview_predict, {
     # Show a modal when the button is pressed
-    shinyalert("This is a disclaimer.", type = "error")
+    shinyalert("Disclaimer: 
+    We cannot be held responsible for conclusions you might draw from the website. 
+    It is intended for data visualisation only.", type = "error")
   })
   
 }
