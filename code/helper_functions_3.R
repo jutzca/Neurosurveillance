@@ -7,24 +7,38 @@
 # -----------------------------------------------------------------------------------
 
 
-plot_base_emsci <- function(data_emsci, score, time){
+plot_base_emsci <- function(data_emsci, score, time, type_plot){
   data_transformed <- data_emsci
   data_transformed <- data_transformed[data_transformed$ExamStage %in% unlist(time, use.names=FALSE), ] # filter time points
   colors <- c("#D7191C", "#FDAE61", "#ABD9E9", "#2C7BB6")
   
   labels=c("A" = "AIS A", "B" = "AIS B", "C" = "AIS C", 'D' = 'AIS D')
-
+  
+  if (type_plot == 0){
+    data_transformed$YEARDOI_cat <- factor(data_transformed$YEARDOI_cat)
+    p <- ggplot(data_transformed, aes(x=Days_after_injury, y=get(score)))
+    p1 <- p + stat_smooth(method = 'gam', aes(group=YEARDOI_cat, colour=YEARDOI_cat, fill=YEARDOI_cat), alpha=0.3) +
+      xlim(0, 400) + 
+      ylab(score) +
+      xlab('Days after injury') + 
+      scale_color_discrete(name = "Year of injury")+
+      theme(legend.title = element_blank())
+  } else if (type_plot == 1) {
   p1 <- ggplot(data_transformed, aes(x=ExamStage, y=get(score))) +
     geom_boxplot(outlier.shape = NA) +  # remove NAs, and set the whisker length to all included points
     geom_jitter(shape=21, colour="grey20", width = 0.3, alpha = 0.3) +
     #theme_economist(horizontal = FALSE) +
-    theme(axis.text.x = element_text(size=16, angle = 30, vjust = 0.5, hjust=1),
-          axis.text.y = element_text(size=16),
-          axis.title.x = element_text(size=18, face="bold", vjust=-0.5),
-          axis.title.y = element_text(size=18, face="bold"),
-          plot.background = element_rect(fill = "#FFFFFF")) +
+    scale_x_discrete(guide = guide_axis(check.overlap = TRUE)) +
     ylab(score) +
     xlab('Exam Stage')
+  }
+  
+  p1 <- p1 + theme_bw() + 
+    theme(axis.text.x = element_text(size=16, angle = 30, vjust = 0.5, hjust=1),
+          axis.text.y = element_text(size=16),
+          axis.title.x = element_text(size=18, face="bold", vjust=0, margin = margin(r=18)),
+          axis.title.y = element_text(size=18, face="bold", margin = margin(r=18)),
+          plot.background = element_rect(fill = "#FFFFFF"))
   
   if(is.element(score, c('UEMS', 'LEMS', 'RMS', 'LMS'))){
     p1 <- p1 + ylim(0, 50)
@@ -37,24 +51,37 @@ plot_base_emsci <- function(data_emsci, score, time){
   return(p1)
 }
 
-plot_base_Sygen <- function(data_sygen, score, time){
+plot_base_Sygen <- function(data_sygen, score, time, type_plot){
   data_transformed <- data_sygen
   data_transformed <- data_transformed[data_transformed$Time %in% unlist(time, use.names=FALSE), ] # filter time points
   colors <- c("#D7191C", "#FDAE61", "#ABD9E9", "#2C7BB6")
   
   labels=c("A" = "AIS A", "B" = "AIS B", "C" = "AIS C", 'D' = 'AIS D')
   
-  p1 <- ggplot(data_transformed, aes(x=Time, y=get(score))) +
-    geom_boxplot(outlier.shape = NA) +  # remove NAs, and set the whisker length to all included points
-    geom_jitter(shape=21, colour="grey20", width = 0.3, alpha = 0.3) +
-    theme_economist(horizontal = FALSE) +
+  if (type_plot == 0){
+    data_transformed$Year_of_injury_cat <- factor(data_transformed$Year_of_injury_cat)
+    p <- ggplot(data_transformed, aes(x=Days_after_injury, y=get(score)))
+    p1 <- p + stat_smooth(method = 'gam', aes(group=Year_of_injury_cat, colour=Year_of_injury_cat, fill=Year_of_injury_cat), alpha=0.3) +
+      xlim(0, 400) + 
+      ylab(score) +
+      xlab('Days after injury') + 
+      scale_color_discrete(name = "Year of injury")+
+      theme(legend.title = element_blank())
+  } else if (type_plot == 1){
+    p1 <- ggplot(data_transformed, aes(x=Time, y=get(score))) +
+      geom_boxplot(outlier.shape = NA) +  # remove NAs, and set the whisker length to all included points
+      geom_jitter(shape=21, colour="grey20", width = 0.3, alpha = 0.3) +
+      scale_x_discrete(guide = guide_axis(check.overlap = TRUE)) +
+      ylab(score) +
+      xlab('Exam Stage')
+  }
+  
+  p1 <- p1 + theme_bw() + 
     theme(axis.text.x = element_text(size=16, angle = 30, vjust = 0.5, hjust=1),
           axis.text.y = element_text(size=16),
-          axis.title.x = element_text(size=18, face="bold", vjust=-0.5),
-          axis.title.y = element_text(size=18, face="bold"),
-          plot.background = element_rect(fill = "#FFFFFF")) +
-    ylab(score) +
-    xlab('Exam Stage')
+          axis.title.x = element_text(size=18, face="bold", vjust=-0.8, margin = margin(r=18)),
+          axis.title.y = element_text(size=18, face="bold", margin = margin(r=18)),
+          plot.background = element_rect(fill = "#FFFFFF"))
   
     if(is.element(score, c('UEMS', 'LEMS', 'RMS', 'LMS'))){
       p1 <- p1 + ylim(0, 50)
@@ -63,7 +90,7 @@ plot_base_Sygen <- function(data_sygen, score, time){
     } else if (is.element(score, c('TMS'))){
       p1 <- p1 + ylim(0, 100)
     }
-      
+  
   return(p1)
 }
 
@@ -76,14 +103,16 @@ plot_base_All <- function(data_All, score){
   p1 <- ggplot(data_transformed, aes(x=Dataset, y=get(score))) +
     geom_boxplot(outlier.shape = NA) +  # remove NAs, and set the whisker length to all included points
     geom_jitter(shape=21, colour="grey20", width = 0.3, alpha = 0.3) +
-    theme_economist(horizontal = FALSE) +
-    theme(axis.text.x = element_text(size=16, angle = 30, vjust = 0.5, hjust=1),
-          axis.text.y = element_text(size=16),
-          axis.title.x = element_text(size=18, face="bold", vjust=-0.5),
-          axis.title.y = element_text(size=18, face="bold"),
-          plot.background = element_rect(fill = "#FFFFFF")) +
+    scale_x_discrete(guide = guide_axis(check.overlap = TRUE)) +
     ylab(score) +
     xlab('Exam Stage')
+  
+  p1 <- p1 + theme_bw()+
+    theme(axis.text.x = element_text(size=16, angle = 30, vjust = 0.5, hjust=1),
+          axis.text.y = element_text(size=16),
+          axis.title.x = element_text(size=18, face="bold", vjust=-0.8, margin = margin(r=18)),
+          axis.title.y = element_text(size=18, face="bold", margin = margin(r=18)),
+          plot.background = element_rect(fill = "#FFFFFF"))
   
   if(is.element(score, c('UEMS', 'LEMS', 'RMS', 'LMS'))){
     p1 <- p1 + ylim(0, 50)
@@ -110,7 +139,7 @@ plot_error <- function(){
   
 }
 
-plot_filters_emsci <- function(data_emsci, score, time, filter1, filter2, cat1, cat2){
+plot_filters_emsci <- function(data_emsci, score, time, filter1, filter2, cat1, cat2, type_plot){
   
   data_transformed <- data_emsci
   data_transformed <- data_transformed[data_transformed[ ,which(names(data_transformed) == 'ExamStage')] %in% unlist(time, use.names=FALSE), ] # filter time points
@@ -120,24 +149,38 @@ plot_filters_emsci <- function(data_emsci, score, time, filter1, filter2, cat1, 
   colors <- c("#D7191C", "#FDAE61", "#ABD9E9", "#2C7BB6")
 
   labels=c("A" = "AIS A", "B" = "AIS B", "C" = "AIS C", 'D' = 'AIS D')
-
-  p1 <- data_transformed %>%
-    dplyr::group_by_at(vars(filter2,filter1)) %>%
-    #dplyr::mutate(value2 = filter_lims(get(score))) %>%  # new variable (value2) so as not to displace first one)
-    ggplot(aes(x=ExamStage, y=get(score))) +
-    geom_boxplot(outlier.shape = NA) +  # remove NAs, and set the whisker length to all included points
-    geom_jitter(shape=21, colour="grey20", width = 0.3, alpha = 0.3) +
-    facet_grid(reformulate(filter2,filter1), scales="free") + 
-    #theme_economist(horizontal = FALSE) +
+  
+  if (type_plot == 0){
+    data_transformed$YEARDOI_cat <- factor(data_transformed$YEARDOI_cat)
+    p <- data_transformed %>%
+      dplyr::group_by_at(vars(filter2,filter1)) %>%
+      ggplot(data_transformed, mapping = aes(x=Days_after_injury, y=get(score))) +
+      facet_grid(reformulate(filter2,filter1), scales="free")
+    p1 <- p + stat_smooth(method = 'gam', mapping = aes(group=YEARDOI_cat, colour=YEARDOI_cat, fill=YEARDOI_cat), alpha=0.3) +
+      xlim(0, 400) + 
+      ylab(score) +
+      xlab('Days after injury') + 
+      scale_color_discrete(name = "Year of injury")+
+      theme(legend.title = element_blank())
+  } else if (type_plot == 1){
+    p1 <- data_transformed %>%
+      dplyr::group_by_at(vars(filter2,filter1)) %>%
+      #dplyr::mutate(value2 = filter_lims(get(score))) %>%  # new variable (value2) so as not to displace first one)
+      ggplot(aes(x=ExamStage, y=get(score))) +
+      geom_boxplot(outlier.shape = NA) +  # remove NAs, and set the whisker length to all included points
+      geom_jitter(shape=21, colour="grey20", width = 0.3, alpha = 0.3) +
+      facet_grid(reformulate(filter2,filter1), scales="free") +
+      scale_x_discrete(guide = guide_axis(check.overlap = TRUE)) +
+      ylab(score) +
+      xlab('Exam Stage')
+  }
+  
+  p1 <- p1 + theme_bw() + 
     theme(axis.text.x = element_text(size=16, angle = 30, vjust = 0.5, hjust=1),
           axis.text.y = element_text(size=16),
-          axis.title.x = element_text(size=18, face="bold", vjust=-0.5),
-          axis.title.y = element_text(size=18, face="bold"),
-          plot.background = element_rect(fill = "#FFFFFF"),
-          strip.text.x = element_text(size = 14),
-          strip.text.y = element_text(size = 14)) +
-    ylab(score) +
-    xlab('Exam Stage')
+          axis.title.x = element_text(size=18, face="bold", vjust=-0.8, margin = margin(r=18)),
+          axis.title.y = element_text(size=18, face="bold", margin = margin(r=18)),
+          plot.background = element_rect(fill = "#FFFFFF"))
   
   if(is.element(score, c('UEMS', 'LEMS', 'RMS', 'LMS'))){
     p1 <- p1 + ylim(0, 50)
@@ -149,48 +192,6 @@ plot_filters_emsci <- function(data_emsci, score, time, filter1, filter2, cat1, 
   
   return(p1)
 
-}
-
-plot_filters_emsci_2 <- function(data_emsci, score, time, filter1, filter2, cat1, cat2){
-  
-  data_transformed <- data_emsci
-  data_transformed <- data_transformed[data_transformed[ ,which(names(data_transformed) == 'ExamStage')] %in% unlist(time, use.names=FALSE), ] # filter time points
-  data_transformed <- data_transformed[data_transformed[ ,which(names(data_transformed) == filter1)] %in% unlist(cat1, use.names=FALSE), ]
-  data_transformed <- data_transformed[data_transformed[ ,which(names(data_transformed) == filter2)] %in% unlist(cat2, use.names=FALSE), ]
-  
-  colors <- c("#D7191C", "#FDAE61", "#ABD9E9", "#2C7BB6")
-  
-  labels=c("A" = "AIS A", "B" = "AIS B", "C" = "AIS C", 'D' = 'AIS D')
-  
-  p1 <- data_transformed %>%
-    #dplyr::group_by_at(vars(filter2,filter1)) %>%
-    dplyr::group_by_at(vars(filter2,filter1)) %>%
-    #dplyr::mutate(value2 = filter_lims(get(score))) %>%  # new variable (value2) so as not to displace first one)
-    ggplot(aes(x=ExamStage, y=get(score))) +
-    geom_boxplot(outlier.shape = NA) +  # remove NAs, and set the whisker length to all included points
-    geom_jitter(shape=21, colour="grey20", width = 0.3, alpha = 0.3) +
-    facet_grid(reformulate(cat1,cat2), scales="free") + 
-    #theme_economist(horizontal = FALSE) +
-    theme(axis.text.x = element_text(size=16, angle = 30, vjust = 0.5, hjust=1),
-          axis.text.y = element_text(size=16),
-          axis.title.x = element_text(size=18, face="bold", vjust=-0.5),
-          axis.title.y = element_text(size=18, face="bold"),
-          plot.background = element_rect(fill = "#FFFFFF"),
-          strip.text.x = element_text(size = 14),
-          strip.text.y = element_text(size = 14)) +
-    ylab(score) +
-    xlab('Exam Stage')
-  
-  if(is.element(score, c('UEMS', 'LEMS', 'RMS', 'LMS'))){
-    p1 <- p1 + ylim(0, 50)
-  } else if (is.element(score, c('RUEMS', 'LUEMS', 'RLEMS', 'LLEMS'))){
-    p1 <- p1 + ylim(0, 25)
-  } else if (is.element(score, c('TMS'))){
-    p1 <- p1 + ylim(0, 100)
-  }
-  
-  return(p1)
-  
 }
 
 filter_lims <- function(x){
@@ -203,7 +204,7 @@ filter_lims <- function(x){
   return(x)
 }
 
-plot_filters_Sygen <- function(data_sygen, score, time, filter1, filter2, cat1, cat2){
+plot_filters_Sygen <- function(data_sygen, score, time, filter1, filter2, cat1, cat2, type_plot){
   data_transformed <- data_sygen
   data_transformed <- data_transformed[data_transformed[ ,which(names(data_transformed) == 'Time')] %in% unlist(time, use.names=FALSE), ] # filter time points
   data_transformed <- data_transformed[data_transformed[ ,which(names(data_transformed) == filter1)] %in% unlist(cat1, use.names=FALSE), ]
@@ -213,23 +214,37 @@ plot_filters_Sygen <- function(data_sygen, score, time, filter1, filter2, cat1, 
   
   labels=c("A" = "AIS A", "B" = "AIS B", "C" = "AIS C", 'D' = 'AIS D')
   
-  p1 <- data_transformed %>%
-    dplyr::group_by_at(vars(filter2,filter1)) %>%
-    #dplyr::mutate(value2 = filter_lims(get(score))) %>%  # new variable (value2) so as not to displace first one)
-    ggplot(aes(x=Time, y=get(score))) +
-    geom_boxplot(outlier.shape = NA) +  # remove NAs, and set the whisker length to all included points
-    geom_jitter(shape=21, colour="grey20", width = 0.3, alpha = 0.3) +
-    facet_grid(reformulate(filter2,filter1), scales="free") + 
-    #theme_economist(horizontal = FALSE) +
-    theme(axis.text.x = element_text(size=16, angle = 30, vjust = 0.5, hjust=1),
+  if (type_plot == 0){
+    data_transformed$Year_of_injury_cat <- factor(data_transformed$Year_of_injury_cat)
+    p <- data_transformed %>%
+      dplyr::group_by_at(vars(filter2,filter1)) %>%
+      ggplot(data_transformed, mapping = aes(x=Days_after_injury, y=get(score))) +
+      facet_grid(reformulate(filter2,filter1), scales="free")
+    p1 <- p + stat_smooth(method = 'gam', mapping = aes(group=Year_of_injury_cat, colour=Year_of_injury_cat, fill=Year_of_injury_cat), alpha=0.3) +
+      xlim(0, 400) + 
+      ylab(score) +
+      xlab('Days after injury') + 
+      scale_color_discrete(name = "Year of injury") +
+      theme(legend.title = element_blank())
+  } else if (type_plot == 1){
+    p1 <- data_transformed %>%
+      dplyr::group_by_at(vars(filter2,filter1)) %>%
+      #dplyr::mutate(value2 = filter_lims(get(score))) %>%  # new variable (value2) so as not to displace first one)
+      ggplot(aes(x=Time, y=get(score))) +
+      geom_boxplot(outlier.shape = NA) +  # remove NAs, and set the whisker length to all included points
+      geom_jitter(shape=21, colour="grey20", width = 0.3, alpha = 0.3) +
+      facet_grid(reformulate(filter2,filter1), scales="free") +
+      scale_x_discrete(guide = guide_axis(check.overlap = TRUE)) +
+      ylab(score) +
+      xlab('Exam Stage')
+  }
+  
+  p1 <- p1 + theme_bw() +
+    theme(axis.text.x = element_text(size=16, angle = 30, vjust =0, hjust=1),
           axis.text.y = element_text(size=16),
-          axis.title.x = element_text(size=18, face="bold", vjust=-0.5),
-          axis.title.y = element_text(size=18, face="bold"),
-          plot.background = element_rect(fill = "#FFFFFF"),
-          strip.text.x = element_text(size = 14),
-          strip.text.y = element_text(size = 14)) +
-    ylab(score) +
-    xlab('Exam Stage')
+          axis.title.x = element_text(size=18, face="bold", vjust=0, margin = margin(r=18)),
+          axis.title.y = element_text(size=18, face="bold", margin = margin(r=18)),
+          plot.background = element_rect(fill = "#FFFFFF"))
   
   if(is.element(score, c('UEMS', 'LEMS', 'RMS', 'LMS'))){
     p1 <- p1 + ylim(0, 50)
@@ -264,17 +279,17 @@ plot_filters_All <- function(data_all, score, filter1, filter2, cat1, cat2){
     ggplot(aes(x=Dataset, y=get(score))) +
     geom_boxplot(outlier.shape = NA) +  # remove NAs, and set the whisker length to all included points
     geom_jitter(shape=21, colour="grey20", width = 0.3, alpha = 0.3) +
-    facet_grid(reformulate(filter2,filter1), scales="free") + 
-    #theme_economist(horizontal = FALSE) +
-    theme(axis.text.x = element_text(size=16, angle = 30, vjust = 0.5, hjust=1),
-          axis.text.y = element_text(size=16),
-          axis.title.x = element_text(size=18, face="bold", vjust=-0.6),
-          axis.title.y = element_text(size=18, face="bold"),
-          plot.background = element_rect(fill = "#FFFFFF"),
-          strip.text.x = element_text(size = 14),
-          strip.text.y = element_text(size = 14)) +
+    facet_grid(reformulate(filter2,filter1), scales="free") +
+    scale_x_discrete(guide = guide_axis(check.overlap = TRUE)) +
     ylab(score) +
     xlab('Exam Stage')
+  
+  p1 <- p1 + theme_bw() + 
+    theme(axis.text.x = element_text(size=16, angle = 30, vjust = 0.5, hjust=1),
+          axis.text.y = element_text(size=16),
+          axis.title.x = element_text(size=18, face="bold", vjust=-0.8, margin = margin(r=18)),
+          axis.title.y = element_text(size=18, face="bold", margin = margin(r=18)),
+          plot.background = element_rect(fill = "#FFFFFF"))
   
   if(is.element(score, c('UEMS', 'LEMS', 'RMS', 'LMS'))){
     p1 <- p1 + ylim(0, 50)
@@ -356,109 +371,6 @@ plot_base_Age_Sygen <- function(data,title){
   return(age_overall.sygen)
 }
 
-plot_base_Age_SCI_rehab <- function(data,title){
-  
-  age_overall.SCI_rehab <- ggplot(data, aes(x = Age)) + 
-    geom_bar(aes(y = ..prop.., group = 1), stat = "count") + 
-    scale_y_continuous(limits=c(0,0.3),labels = scales::percent)+ 
-    labs(title = title) +
-    facet_grid(data$YEARDOI~data$Sex) +
-    xlab("Age at Injury") +
-    ylab("Proportion") +
-    theme_economist(horizontal = FALSE) +
-    theme(panel.grid.major.x = element_line(linetype = "dotted", size = 0.3, color = "#3A3F4A"),
-          strip.text = element_text(color = "#5D646F", size = 10, face = "bold", hjust = 0.50),
-          plot.background = element_rect(fill = "#FFFFFF"),
-          axis.text.x = element_text(angle = 45),
-          strip.text.x = element_text(size = 14),
-          strip.text.y = element_text(size = 14))
-  
-  return(age_overall.SCI_rehab)
-}
-
-plot_base_Sex_EMSCI <- function(data, title){
-  emsci.sex.long <- data %>%
-    dplyr::count(Sex,YEARDOI_cat) %>%
-    dplyr::group_by(YEARDOI_cat) %>%
-    dplyr::mutate(frequency = (n/sum(n))*100)
-
-  #------Plot population pyramide for year and color by sex - OVERALL ----
-  #Plot data for the male patients
-  gg.male <- ggplot(data = subset(emsci.sex.long, Sex=='Male'),
-                    mapping = aes(x = as.factor(YEARDOI_cat),
-                                  y = frequency,
-                                  fill = Sex,
-                                  label=paste(round(frequency, 0), "% (", 'n = ', n, ')', sep=""))) +
-    geom_bar(stat = "identity") +
-    scale_y_continuous('Frequency [%]', limits = c(0, 100)) +
-    scale_fill_manual(values = as.vector("#3E606F"))+
-    geom_text(hjust=(1.1), size=3.5, colour="#FFFFFF") +
-    theme_economist(horizontal = FALSE) +
-    theme(text = element_text(color = "#3A3F4A"),
-          panel.grid.major.y = element_blank(),
-          panel.grid.minor = element_blank(),
-          panel.grid.major.x = element_line(linetype = "dotted", size = 0.3, color = "#3A3F4A"),
-          axis.title = element_blank(),
-          plot.title = element_text(face = "bold", size = 14, margin = margin(b = 10), hjust = 0.030),
-          plot.subtitle = element_text(size = 10, margin = margin(b = 20), hjust = 0.030),
-          plot.caption = element_text(size = 10, margin = margin(b = 10, t = 50), color = "#5D646F"),
-          axis.text.y = element_text(size = 10, color = "#5D646F"),
-          axis.text.x = element_text(size = 10, color = "#5D646F"),
-          strip.text = element_text(color = "#5D646F", size = 10, face = "bold", hjust = 0.5),
-          plot.background = element_rect(fill = "#FFFFFF"),
-          plot.margin=unit(c(0.1,0.1,0.1,0.05),"cm"),
-          legend.position = "none",
-          legend.spacing  = unit(0.1, "lines"),
-          legend.text  = element_text(size = 10),
-          legend.text.align = 0,
-          axis.ticks = element_blank())+
-    ggtitle("Male") +
-    coord_flip()
-
-  ##Plot data for the female patients
-  gg.female <-  ggplot(data = subset(emsci.sex.long, Sex=='Female'),
-                       mapping = aes(x = as.factor(YEARDOI_cat),
-                                     y = frequency,
-                                     fill = Sex,
-                                     label=paste(round(frequency, 0), "% (", 'n = ', n, ')', sep=""))) +
-    geom_bar(stat = "identity") +
-    geom_text(hjust=(1), size=3.5, colour="#5D646F") +
-    scale_y_continuous('Frequency [%]', limits = c(100, 0), trans = 'reverse') +
-    scale_fill_manual(values=as.vector("#8C3F4D")) +
-    theme_economist(horizontal = FALSE) +
-    theme(text = element_text(color = "#3A3F4A"),
-          panel.grid.major.y = element_blank(),
-          panel.grid.minor = element_blank(),
-          panel.grid.major.x = element_line(linetype = "dotted", size = 0.3, color = "#3A3F4A"),
-          axis.title = element_blank(),
-          plot.title = element_text(face = "bold", size = 14, margin = margin(b = 10), hjust = 0.95),
-          plot.subtitle = element_text(size = 10, margin = margin(b = 20), hjust = 0.030),
-          plot.caption = element_text(size = 10, margin = margin(b = 10, t = 50), color = "#5D646F"),
-          axis.text.y = element_blank(),
-          axis.text.x = element_text(size = 10, color = "#5D646F"),
-          strip.text = element_text(color = "#5D646F", size = 10, face = "bold", hjust = 0.5),
-          plot.background = element_rect(fill = "#FFFFFF"),
-          plot.margin=unit(c(0.1,0.1,0.1,0.05),"cm"),
-          legend.position = "none",
-          legend.spacing  = unit(0.1, "lines"),
-          legend.text  = element_text(size = 10),
-          legend.text.align = 0,
-          axis.ticks = element_blank()) +
-    ggtitle("Female") +
-    coord_flip()
-
-  ## Plutting the graphs together together
-  # sex.overall <- grid.draw(gtable::gtable_add_grob(arrangeGrob(g, g, ncol=2),
-  #                                   rectGrob(gp=gpar(lwd=5, fill=NA)), 1, 1, 1, 2))
-  sex.overall <- grid.arrange(gg.female,
-                              gg.male,
-                              widths=c(0.4,0.5),
-                              ncol=2,
-                              top = textGrob(title,gp=gpar(fontsize=14)))
-  return(sex.overall)
-  #return(plot)
-}
-
 
 plot_base_Sex_Sygen <- function(data, title){
   Sygen.sex.long <- data %>%
@@ -507,92 +419,6 @@ plot_base_Sex_Sygen <- function(data, title){
                          x = as.factor(YEARDOI_cat),
                          y = frequency,
                          fill = sexcd,
-                         label=paste(round(frequency, 0), "% (", 'n = ', n, ')', sep="")
-                       )) +
-    geom_bar(stat = "identity") +
-    geom_text(hjust=(1), size=3.5, colour="#5D646F") +
-    scale_y_continuous('Frequency [%]', limits = c(100, 0), trans = 'reverse') +
-    scale_fill_manual(values=as.vector("#8C3F4D"))+
-    theme_economist(horizontal = FALSE) +
-    theme(text = element_text(color = "#3A3F4A"),
-          panel.grid.major.y = element_blank(),
-          panel.grid.minor = element_blank(),
-          panel.grid.major.x = element_line(linetype = "dotted", size = 0.3, color = "#3A3F4A"),
-          axis.title = element_blank(),
-          plot.title = element_text(face = "bold", size = 14, margin = margin(b = 10), hjust = 0.95),
-          plot.subtitle = element_text(size = 10, margin = margin(b = 20), hjust = 0.030),
-          plot.caption = element_text(size = 10, margin = margin(b = 10, t = 50), color = "#5D646F"),
-          axis.text.y = element_blank(),
-          axis.text.x = element_text(size = 10, color = "#5D646F"),
-          strip.text = element_text(color = "#5D646F", size = 10, face = "bold", hjust = 0.5),
-          plot.background = element_rect(fill = "#FFFFFF"),
-          plot.margin=unit(c(0.1,0.1,0.1,0.05),"cm"),
-          legend.position = "none",
-          legend.spacing  = unit(0.1, "lines"),
-          legend.text  = element_text(size = 10),
-          legend.text.align = 0,
-          axis.ticks = element_blank()) +
-    ggtitle("Female") +
-    coord_flip()
-  
-  ## Plutting the graphs together together
-  sex.overall <- grid.arrange(gg.female,
-                              gg.male,
-                              widths=c(0.4,0.5),
-                              ncol=2,
-                              top = textGrob(title,gp=gpar(fontsize=14)))
-  return(sex.overall)
-  #return(plot)
-}
-
-
-plot_base_Sex_SCI_rehab <- function(data, title){
-  SCI_rehab.sex.long <- data %>%
-    dplyr::count(Sex,YEARDOI) %>%
-    dplyr::group_by(YEARDOI) %>%
-    dplyr::mutate(frequency = (n/sum(n))*100)
-  
-  #------Plot population pyramide for year and color by sex - OVERALL ----
-  #Plot data for the male patients
-  gg.male <- ggplot(data = subset(SCI_rehab.sex.long, Sex=='Male'),
-                    mapping = aes(
-                      x = as.factor(YEARDOI),
-                      y = frequency,
-                      fill = Sex,
-                      label = paste(round(frequency, 0), "% (", 'n = ', n, ')', sep="")
-                    )) +
-    geom_bar(stat = "identity") +
-    scale_y_continuous('Frequency [%]', limits = c(0, 100)) +
-    scale_fill_manual(values=as.vector("#3E606F"))+
-    geom_text(hjust=(1.1), size=3.5, colour="#FFFFFF") +
-    theme_economist(horizontal = FALSE) +
-    theme(text = element_text(color = "#3A3F4A"),
-          panel.grid.major.y = element_blank(),
-          panel.grid.minor = element_blank(),
-          panel.grid.major.x = element_line(linetype = "dotted", size = 0.3, color = "#3A3F4A"),
-          axis.title = element_blank(),
-          plot.title = element_text(face = "bold", size = 14, margin = margin(b = 10), hjust = 0.030),
-          plot.subtitle = element_text(size = 10, margin = margin(b = 20), hjust = 0.030),
-          plot.caption = element_text(size = 10, margin = margin(b = 10, t = 50), color = "#5D646F"),
-          axis.text.y = element_text(size = 10, color = "#5D646F"),
-          axis.text.x = element_text(size = 10, color = "#5D646F"),
-          strip.text = element_text(color = "#5D646F", size = 10, face = "bold", hjust = 0.5),
-          plot.background = element_rect(fill = "#FFFFFF"),
-          plot.margin=unit(c(0.1,0.1,0.1,0.05),"cm"),
-          legend.position = "none",
-          legend.spacing  = unit(0.1, "lines"),
-          legend.text  = element_text(size = 14),
-          legend.text.align = 0,
-          axis.ticks = element_blank()) +
-    ggtitle("Male") +
-    coord_flip()
-  
-  ##Plot data for the female patients
-  gg.female <-  ggplot(data = subset(SCI_rehab.sex.long, Sex=='Female'),
-                       mapping = aes(
-                         x = as.factor(YEARDOI),
-                         y = frequency,
-                         fill = Sex,
                          label=paste(round(frequency, 0), "% (", 'n = ', n, ')', sep="")
                        )) +
     geom_bar(stat = "identity") +
@@ -781,38 +607,7 @@ plot_base_AIS_Sygen <- function(data, title){
   return(Sygen.ais.plot)
 }
 
-plot_base_AIS_SCI_rehab <- function(data, title){
-  data_sub = data[!is.na(data$AIS),]
-  SCI_rehab.ais.proportions = data_sub %>%
-    dplyr::count(YEARDOI, AIS, Sex) %>%
-    dplyr::group_by(YEARDOI, Sex)%>% 
-    dplyr::mutate(frequency = (n / sum(n))*100)
-  
-  #----Plot the population pyramide 'Baseline Injury Severity' - OVERALL----
-  SCI_rehab.ais.plot <-ggplot(data = SCI_rehab.ais.proportions, aes(x = as.factor(YEARDOI), y = frequency, fill = AIS)) +
-    geom_bar(data = SCI_rehab.ais.proportions %>% filter(Sex == "Male") %>% arrange(rev(as.factor(YEARDOI))),
-             stat = "identity")+
-    geom_bar(data = SCI_rehab.ais.proportions %>% filter(Sex == "Female") %>% arrange(rev(as.factor(YEARDOI))),
-             stat = "identity",
-             mapping = aes(y = -frequency)) +
-    coord_flip(clip = "off") +
-    scale_y_continuous(labels = abs, limits = c(-101, 101), breaks = seq(-100, 100, 10), expand = c(0,0)) +
-    #scale_x_discrete(labels = abs, limits = c(2000, 2020), breaks = seq(2001, 2019, 1), expand = c(0,0))+ 
-    geom_hline(yintercept = 0) +
-    theme_economist(horizontal = FALSE) +
-    scale_fill_economist() +
-    labs(fill = "", x = "Year of Injury", y = "Proportion of Patients [%]")+ ggtitle(title)+
-    theme(axis.title = element_text(size = 12, face = 'bold'), 
-          axis.text = element_text(size = 10),
-          legend.text = element_text(size=10),
-          plot.title = element_text(hjust = 0.5, size = 12),
-          axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
-          axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0)),
-          plot.background = element_rect(fill = "#FFFFFF"))+
-    annotation_custom(grob = textGrob(label = 'Female', gp=gpar(fontsize=10, fontface="bold")), xmin=length(levels(SCI_rehab.ais.proportions$YEARDOI)), xmax=length(levels(SCI_rehab.ais.proportions$YEARDOI)), ymin=-85, ymax=-85) + 
-    annotation_custom(grob = textGrob(label = 'Male', gp=gpar(fontsize=10, fontface="bold")), xmin=length(levels(SCI_rehab.ais.proportions$YEARDOI)), xmax=length(levels(SCI_rehab.ais.proportions$YEARDOI)), ymin=90, ymax=90)
-  return(SCI_rehab.ais.plot)
-}
+
 
 
 plot_base_NLI_EMSCI <- function(data, title){
@@ -904,50 +699,7 @@ plot_base_NLI_Sygen <- function(data, title){
   return(Sygen.nli.plot)
 }
 
-plot_base_NLI_SCI_rehab <- function(data, title){
-  data_sub = data[!is.na(data$NLI),]
-  SCI_rehab.nli.proportions = data_sub %>%
-    dplyr::count(YEARDOI,NLI,Sex) %>%
-    dplyr::group_by(YEARDOI,Sex)%>%
-    dplyr::mutate(frequency = (n / sum(n))*100)
-  
-  #Reorder levels
-  SCI_rehab.nli.proportions$NLI <- factor(SCI_rehab.nli.proportions$NLI, levels = c("C01","C02","C03","C04","C05","C06","C07","C08",
-                                                                                    "T01","T02","T03","T04","T05","T06","T07","T08","T09","T10","T11", "T12",
-                                                                                    "L01", "L02", "L03", "L04", "L05"))
-  myColors <- c('#820400', '#A30500', '#CC0600', '#FF0800', '#FF3933', '#FF3933', '#FF615C', '#FF817D',
-                '#D5D5FF', '#CBCAFF', '#BEBDFF', '#AEACFF', '#9A97FF', '#817DFF', '#615CFF', '#3933FF', '#0800FF', '#0600CC', '#0500A3', '#030068',
-                '#7E8200', '#9EA300', '#C6CC00', '#F7FF00', '#FCFF97')
-  names(myColors) <- levels(SCI_rehab.nli.proportions$NLI)
-  colScale <- scale_colour_manual("NLI", values = myColors)
-  
-  
-  SCI_rehab.nli.plot <- ggplot(data = SCI_rehab.nli.proportions, aes(x = as.factor(YEARDOI), y = frequency, fill = NLI)) +
-    geom_bar(data = SCI_rehab.nli.proportions %>% filter(Sex == "Male") %>% arrange(rev(as.factor(YEARDOI))),
-             stat = "identity", colour="white")+
-    geom_bar(data = SCI_rehab.nli.proportions %>% filter(Sex == "Female") %>% arrange(rev(as.factor(YEARDOI))),
-             stat = "identity",
-             mapping = aes(y = -frequency), colour="white") +
-    coord_flip(clip = "off") +
-    scale_y_continuous(labels = abs, limits = c(-101, 101), breaks = seq(-100, 100, 20), expand = c(0,0)) +
-    #scale_x_continuous(labels = abs, limits = c(2000, 2020), breaks = seq(2001, 2019, 1), expand = c(0,0))+ 
-    geom_hline(yintercept = 0) +
-    theme_economist(horizontal = FALSE) +
-    scale_fill_manual(values = myColors) +
-    labs(fill = "", x = "Year of Injury", y = "Proportion of Patients [%]") + 
-    ggtitle(title) +
-    theme(axis.title = element_text(size = 12, face = 'bold'), 
-          axis.text = element_text(size = 10),
-          legend.text = element_text(size=10),
-          plot.title = element_text(hjust = 0.5, size = 12),
-          axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
-          axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0)),
-          plot.background = element_rect(fill = "#FFFFFF")) +
-    annotation_custom(grob = textGrob(label = 'Female', gp=gpar(fontsize=10, fontface="bold")), xmin=length(levels(SCI_rehab.nli.proportions$YEARDOI)), xmax=length(levels(SCI_rehab.nli.proportions$YEARDOI)), ymin=-85, ymax=-85) + 
-    annotation_custom(grob = textGrob(label = 'Male', gp=gpar(fontsize=10, fontface="bold")), xmin=length(levels(SCI_rehab.nli.proportions$YEARDOI)), xmax=length(levels(SCI_rehab.nli.proportions$YEARDOI)), ymin=90, ymax=90)
-  
-  return(SCI_rehab.nli.plot)
-}
+
 
 plot_predict_emsci <- function(data, score){
   
@@ -968,7 +720,7 @@ plot_predict_emsci <- function(data, score){
     theme(axis.text.x = element_text(size=16),
           axis.text.y = element_text(size=16),
           axis.title.x = element_text(size=18, face="bold"),
-          axis.title.y = element_text(size=18, face="bold"),
+          axis.title.y = element_text(size=18, face="bold", margin = margin(r=18)),
           plot.background = element_rect(fill = "#FFFFFF")) +
     xlab('Exam Stage')
   
@@ -1006,8 +758,8 @@ plot_predict_emsci_NN <- function(data, score, value){
     theme_economist() +
     theme(axis.text.x = element_text(size=16),
           axis.text.y = element_text(size=16),
-          axis.title.x = element_text(size=18, face="bold", vjust=-0.5),
-          axis.title.y = element_text(size=18, face="bold"),
+          axis.title.x = element_text(size=18, face="bold", vjust=-0.8),
+          axis.title.y = element_text(size=18, face="bold", margin = margin(r=18)),
           plot.background = element_rect(fill = "#FFFFFF"),
           legend.position = "none") +
     xlab('Exam Stage')
@@ -1073,4 +825,85 @@ plot_error_line <- function(){
 }
 
 
-
+plot_base_Sex_EMSCI <- function(data, title){
+  emsci.sex.long <- data %>%
+    dplyr::count(Sex,YEARDOI_cat) %>%
+    dplyr::group_by(YEARDOI_cat) %>%
+    dplyr::mutate(frequency = (n/sum(n))*100)
+  
+  #------Plot population pyramide for year and color by sex - OVERALL ----
+  #Plot data for the male patients
+  gg.male <- ggplot(data = subset(emsci.sex.long, Sex=='Male'),
+                    mapping = aes(x = as.factor(YEARDOI_cat),
+                                  y = frequency,
+                                  fill = Sex,
+                                  label=paste(round(frequency, 0), "% (", 'n = ', n, ')', sep=""))) +
+    geom_bar(stat = "identity") +
+    scale_y_continuous('Frequency [%]', limits = c(0, 100)) +
+    scale_fill_manual(values = as.vector("#3E606F"))+
+    geom_text(hjust=(1.1), size=3.5, colour="#FFFFFF") +
+    theme_economist(horizontal = FALSE) +
+    theme(text = element_text(color = "#3A3F4A"),
+          panel.grid.major.y = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.grid.major.x = element_line(linetype = "dotted", size = 0.3, color = "#3A3F4A"),
+          axis.title = element_blank(),
+          plot.title = element_text(face = "bold", size = 14, margin = margin(b = 10), hjust = 0.030),
+          plot.subtitle = element_text(size = 10, margin = margin(b = 20), hjust = 0.030),
+          plot.caption = element_text(size = 10, margin = margin(b = 10, t = 50), color = "#5D646F"),
+          axis.text.y = element_text(size = 10, color = "#5D646F"),
+          axis.text.x = element_text(size = 10, color = "#5D646F"),
+          strip.text = element_text(color = "#5D646F", size = 10, face = "bold", hjust = 0.5),
+          plot.background = element_rect(fill = "#FFFFFF"),
+          plot.margin=unit(c(0.1,0.1,0.1,0.05),"cm"),
+          legend.position = "none",
+          legend.spacing  = unit(0.1, "lines"),
+          legend.text  = element_text(size = 10),
+          legend.text.align = 0,
+          axis.ticks = element_blank())+
+    ggtitle("Male") +
+    coord_flip()
+  
+  ##Plot data for the female patients
+  gg.female <-  ggplot(data = subset(emsci.sex.long, Sex=='Female'),
+                       mapping = aes(x = as.factor(YEARDOI_cat),
+                                     y = frequency,
+                                     fill = Sex,
+                                     label=paste(round(frequency, 0), "% (", 'n = ', n, ')', sep=""))) +
+    geom_bar(stat = "identity") +
+    geom_text(hjust=(1), size=3.5, colour="#5D646F") +
+    scale_y_continuous('Frequency [%]', limits = c(100, 0), trans = 'reverse') +
+    scale_fill_manual(values=as.vector("#8C3F4D")) +
+    theme_economist(horizontal = FALSE) +
+    theme(text = element_text(color = "#3A3F4A"),
+          panel.grid.major.y = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.grid.major.x = element_line(linetype = "dotted", size = 0.3, color = "#3A3F4A"),
+          axis.title = element_blank(),
+          plot.title = element_text(face = "bold", size = 14, margin = margin(b = 10), hjust = 0.95),
+          plot.subtitle = element_text(size = 10, margin = margin(b = 20), hjust = 0.030),
+          plot.caption = element_text(size = 10, margin = margin(b = 10, t = 50), color = "#5D646F"),
+          axis.text.y = element_blank(),
+          axis.text.x = element_text(size = 10, color = "#5D646F"),
+          strip.text = element_text(color = "#5D646F", size = 10, face = "bold", hjust = 0.5),
+          plot.background = element_rect(fill = "#FFFFFF"),
+          plot.margin=unit(c(0.1,0.1,0.1,0.05),"cm"),
+          legend.position = "none",
+          legend.spacing  = unit(0.1, "lines"),
+          legend.text  = element_text(size = 10),
+          legend.text.align = 0,
+          axis.ticks = element_blank()) +
+    ggtitle("Female") +
+    coord_flip()
+  
+  ## Plutting the graphs together together
+  # sex.overall <- grid.draw(gtable::gtable_add_grob(arrangeGrob(g, g, ncol=2),
+  #                                   rectGrob(gp=gpar(lwd=5, fill=NA)), 1, 1, 1, 2))
+  sex.overall <- grid.arrange(gg.female,
+                              gg.male,
+                              widths=c(0.4,0.5),
+                              ncol=2,
+                              top = textGrob(title,gp=gpar(fontsize=14)))
+  return(sex.overall)
+  #return(plot)
+}
